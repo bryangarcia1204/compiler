@@ -10,11 +10,8 @@ if sys.platform == 'win32':
     os.environ['CXX'] = 'g++'
 
 cpp_module = Extension(
-    'src.cpp_module',
-    sources=[
-        'detector.cpp',
-        'bindings.cpp'
-    ],
+    'cpp_module',
+    sources=['detector.cpp', 'bindings.cpp'],
     include_dirs=[pybind11.get_include()],
     language='c++',
     extra_compile_args=['-std=c++11'],

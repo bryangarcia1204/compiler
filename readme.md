@@ -94,15 +94,17 @@ markdown
     source venv/bin/activate        # Linux/macOS
     venv\Scripts\activate           # Windows
 
-    Instala el paquete en modo editable
-    bash
-
-    pip install -e .
+    Instala el paquete en modo editable:
+    
+      pip install -e .
 
     Esto instalará todas las dependencias (PyQt5, pybind11, etc.) y compilará automáticamente el módulo C++ en tu sistema. Si la compilación falla, asegúrate de tener instalado un compilador C++ y vuelve a intentarlo.
 
-    Verifica la instalación
-    bash
+    Si persiste el fallo prueba:
+
+      pip install -e . --no-build-isolation
+
+    Verifica la instalación:
 
     python -c "import src.cpp_module; print('✅ Módulo C++ cargado correctamente')"
 
@@ -112,12 +114,12 @@ Interfaz gráfica
 La forma más sencilla de usar el compilador es a través de su interfaz gráfica.
 bash
 
-compilador
+    compilador
 
 O directamente:
 bash
 
-python -m src.main
+    python -m src.main
 
 Pasos básicos:
 
@@ -254,9 +256,9 @@ MIT License
 
     Autor: Brayan M.
 
-    Correo: tu@email.com
+    Correo: bgarciaguibert@gmail.com
 
-    GitHub: github.com/tu-usuario/compilador-profesional
+    GitHub: github.com/tu-usuario/compiler
 
 Si tienes preguntas, sugerencias o encuentras algún error, no dudes en abrir un issue o contactarme directamente.
 <p align="center"> <strong>¡Gracias por usar el Compilador Profesional! 🚀</strong> </p> ```
