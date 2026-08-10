@@ -19,7 +19,7 @@ if is_windows:
 # CONFIGURACIÓN DEL MÓDULO C++
 # ============================================================
 cpp_module = Extension(
-    'src.cpp_module',  # ⬅️ CAMBIADO: ahora está dentro de src/
+    'src.cpp_module.cpp_module',  # ⬅️ CAMBIADO: ahora está dentro de src/
     sources=[
         'cpp_module/detector.cpp',
         'cpp_module/bindings.cpp'
