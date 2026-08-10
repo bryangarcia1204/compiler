@@ -825,12 +825,13 @@ class MainWindow(QMainWindow):
         event.accept()
 
 def main():
-    if __name__ == "__main__":
-        app = QApplication(sys.argv)
-        try:
-            window = MainWindow()
-            window.show()
-        except Exception as e:
-            log.critical(f"Error critico del sistema: {e}")
-        sys.exit(app.exec_())
-main()
+    app = QApplication(sys.argv)
+    try:
+        window = MainWindow()
+        window.show()
+    except Exception as e:
+        log.critical(f"Error critico del sistema: {e}")
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

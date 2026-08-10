@@ -6,7 +6,7 @@ class ErrorParser:
         'gcc': re.compile(r'^(.+?):(\d+):(?:(\d+):)?\s*(error|warning|note):\s*(.*)$', re.MULTILINE),
         'clang': re.compile(r'^(.+?):(\d+):(?:(\d+):)?\s*(error|warning|note):\s*(.*)$', re.MULTILINE),
         'javac': re.compile(r'^(.+?):(\d+):\s*(error|warning):\s*(.*)$', re.MULTILINE),
-        'python': re.compile(r'^\s*File "(.+?)", line (\d+), in .+?\n\s*(.*?)\n(\S+):\s*(.*)$', re.MULTILINE),
+        'python': re.compile(r'^\s*File "(.+?)", line (\d+), in .+?$', re.MULTILINE),
         'node': re.compile(r'^\s*at\s+(.+?):(\d+):(\d+)$', re.MULTILINE),
         'rustc': re.compile(r'^(.*):(\d+):(\d+):\s*(error|warning):\s*(.*)$', re.MULTILINE),
         'cargo': re.compile(r'^(error|warning):\s*(.*)$', re.MULTILINE),

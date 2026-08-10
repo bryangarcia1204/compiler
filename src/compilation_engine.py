@@ -28,10 +28,6 @@ class CompilationEngine:
         self.process = None
         self.output_queue = queue.Queue()
 
-    def build_compile_command(self, file_path, tool, output_path=None, extra_args=None, output_type='exe', release_mode=False):
-        """Construye (cmd, cwd, post_actions) para compilar/ejecutar."""
-        return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode)
-
     def build_package_command(self, file_path, tool, output_path=None, extra_args=None):
         """Construye (cmd, cwd, post_actions) para empaquetar."""
         extra_args = extra_args or []
@@ -208,6 +204,10 @@ class CompilationEngine:
 
         log.debug(f"[CompilationEngine] No ha matcheado con ningun lenguage de la lista esperé actualizaciones")
         return None, None, []
+
+    def build_compile_command(self, file_path, tool, output_path=None, extra_args=None, output_type='exe', release_mode=False):
+            """Construye (cmd, cwd, post_actions) para compilar/ejecutar."""
+            return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode)
 
     def _run_subprocess(self, cmd, cwd=None, timeout=None):
         try:
