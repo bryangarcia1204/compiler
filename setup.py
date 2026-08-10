@@ -3,37 +3,45 @@ import pybind11
 import sys
 import os
 
-# ---------- CONFIGURACIÓN PARA USAR MINGW ----------
-
-# Configuración del módulo C++
+# ============================================================
+# CONFIGURACIÓN MULTIPLATAFORMA
+# ============================================================
 is_windows = sys.platform == 'win32'
+is_linux = sys.platform.startswith('linux')
+is_macos = sys.platform == 'darwin'
 
+# Forzar compilador en Windows
 if is_windows:
-    # Establecer los compiladores C/C++
     os.environ['CC'] = 'gcc'
     os.environ['CXX'] = 'g++'
 
+# ============================================================
+# CONFIGURACIÓN DEL MÓDULO C++
+# ============================================================
 cpp_module = Extension(
-    'cpp_module',
+    'src.cpp_module',  # ⬅️ CAMBIADO: ahora está dentro de src/
     sources=[
         'cpp_module/detector.cpp',
         'cpp_module/bindings.cpp'
     ],
     include_dirs=[pybind11.get_include()],
     language='c++',
-    extra_compile_args=['-std=c++11'],
+    extra_compile_args=['-std=c++11', '-O3'],
     extra_link_args=(
         [
             '-shared',
             '-static-libgcc',
             '-static-libstdc++',
-            '-Wl,-Bstatic',
-            '-lwinpthread',
-            '-Wl,-Bdynamic'
-        ] if is_windows else []
-    )
+        ] + (
+            # En Windows, enlazar estáticamente winpthread
+            ['-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic'] if is_windows else []
+        )
+    ) if is_windows else ['-shared', '-fPIC']  # Linux/macOS
 )
 
+# ============================================================
+# CONFIGURACIÓN DEL PAQUETE
+# ============================================================
 setup(
     name='compilador_profesional',
     version='1.0.0',
@@ -44,26 +52,36 @@ setup(
     author_email='bgarciaguibert@gmail.com',
     url='https://github.com/bryangarcia1204/compiler',
     license='MIT',
+    
+    # ⬅️ CAMBIADO: encuentra paquetes en src/
     packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    package_dir={'': '.'},
+    
+    # ⬅️ CAMBIADO: el módulo C++ se instala dentro de src/
     ext_modules=[cpp_module],
+    
     install_requires=[
         'PyQt5>=5.15',
         'pybind11>=3.1',
     ],
+    
     entry_points={
         'console_scripts': [
-            'compilador = main:main',
+            'compilador = src.main:main',  # ⬅️ CAMBIADO: punto de entrada
         ]
     },
+    
     include_package_data=True,
     zip_safe=False,
     python_requires='>=3.8',
+    
+    # ⬅️ CAMBIADO: opciones de compilación
     options={
         'build_ext': {
-            'compiler': 'mingw32' if is_windows else 'unix' or 'clang',
+            'compiler': 'mingw32' if is_windows else 'unix',
         }
     },
+    
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
@@ -76,5 +94,7 @@ setup(
         'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: 3.13',
         'Operating System :: OS Independent',
+        'Topic :: Software Development :: Build Tools',
+        'Topic :: Software Development :: Compilers',
     ],
 )
