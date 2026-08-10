@@ -6,7 +6,7 @@ import platform
 import shutil
 
 from src import logger
-from output_types import OUTPUT_TYPE_MAP
+from src.output_types import OUTPUT_TYPE_MAP
 
 log = logger.Logger()
 
