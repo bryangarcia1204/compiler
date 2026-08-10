@@ -5,7 +5,7 @@ import queue
 import platform
 import shutil
 
-import logger
+from src import logger
 from output_types import OUTPUT_TYPE_MAP
 
 log = logger.Logger()

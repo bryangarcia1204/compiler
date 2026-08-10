@@ -6,7 +6,7 @@ import subprocess
 import threading
 import pathlib
 import platform
-import logger as logger
+from src import logger as logger
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QTextEdit, QFileDialog, QMessageBox, QLineEdit,
@@ -15,12 +15,12 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QIcon
 
-from argument_suggester import ArgumentSuggester
-from language_detector import LanguageDetector
-from compiler_detector import CompilerDetector
-from compilation_engine import CompilationEngine
-from error_parser import ErrorParser
-from output_types import OUTPUT_TYPE_MAP
+from src.argument_suggester import ArgumentSuggester
+from src.language_detector import LanguageDetector
+from src.compiler_detector import CompilerDetector
+from src.compilation_engine import CompilationEngine
+from src.error_parser import ErrorParser
+from src.output_types import OUTPUT_TYPE_MAP
 
 log = logger.Logger()
 

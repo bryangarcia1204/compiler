@@ -1,5 +1,5 @@
 import os
-import logger
+from src import logger
 
 log = logger.Logger()
 
