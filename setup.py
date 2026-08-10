@@ -8,6 +8,11 @@ import os
 # Configuración del módulo C++
 is_windows = sys.platform == 'win32'
 
+if is_windows:
+    # Establecer los compiladores C/C++
+    os.environ['CC'] = 'gcc'
+    os.environ['CXX'] = 'g++'
+
 cpp_module = Extension(
     'cpp_module',
     sources=[
@@ -20,7 +25,6 @@ cpp_module = Extension(
     extra_link_args=(
         [
             '-shared',
-            '-static',
             '-static-libgcc',
             '-static-libstdc++',
             '-Wl,-Bstatic',
