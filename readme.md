@@ -82,7 +82,6 @@ markdown
 ### Pasos de instalación
 
 1. **Clona el repositorio**
-  ![CI](https://github.com/tu-usuario/compilador-profesional/actions/workflows/ci.yml/badge.svg)
 
    ```bash
    git clone https://github.com/tu-usuario/compilador-profesional.git
