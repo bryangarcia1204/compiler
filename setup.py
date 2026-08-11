@@ -18,30 +18,29 @@ if is_windows:
 # ============================================================
 # CONFIGURACIÓN DEL MÓDULO C++
 # ============================================================
-# Configuración de enlace por plataforma
+
+# --- Configuración de enlace ---
 if is_windows:
-    extra_link = [
+    extra_link_args = [
         '-shared',
-        '-static',
         '-static-libgcc',
         '-static-libstdc++',
         '-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic'
     ]
 elif is_linux:
-    extra_link = ['-shared', '-fPIC']
+    extra_link_args = ['-shared', '-fPIC']
 else:  # macOS
-    # No forzar flags, dejar que setuptools gestione
-    extra_link = []
+    extra_link_args = []   # No forzar flags, setuptools añade -bundle automáticamente
 
-# Definición del módulo
 cpp_module = Extension(
     'src.module.cpp_module',
     sources=['cpp_module/detector.cpp', 'cpp_module/bindings.cpp'],
     include_dirs=[pybind11.get_include()],
     language='c++',
     extra_compile_args=['-std=c++11', '-O3'],
-    extra_link_args=extra_link,
+    extra_link_args=extra_link_args,
 )
+
 # ============================================================
 # CONFIGURACIÓN DEL PAQUETE
 # ============================================================
@@ -57,7 +56,7 @@ setup(
     license='MIT',
     
     # ⬅️ CAMBIADO: encuentra paquetes en src/
-    packages=find_packages(),
+    packages=find_packages(include=['src', 'src.*'])
     package_dir={'': '.'},
     
     # ⬅️ CAMBIADO: el módulo C++ se instala dentro de src/
