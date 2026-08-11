@@ -1,4 +1,11 @@
-name: CI
+
+
+
+
+
+
+
+: CI
 
 on:
   push:
@@ -69,15 +76,8 @@ jobs:
           pip install pytest pytest-cov pytest-qt pytest-xdist pytest-timeout
 
       # ── COMPILACIÓN DEL MÓDULO C++ ──
-      - name: Build C++ extension (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          python setup.py build_ext --inplace
-
-      - name: Build C++ extension (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          python setup.py build_ext --inplace
+      - name: Build C++ extension
+        run: python setup.py build_ext --inplace
 
       # ── PRUEBAS UNITARIAS ──
       - name: Run unit tests
