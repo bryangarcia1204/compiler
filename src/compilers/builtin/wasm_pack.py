@@ -19,7 +19,12 @@ class WasmPackStrategy(CompilerStrategy):
         output_type: str = 'exe',
         release_mode: bool = False
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
-        # wasm-pack se usa principalmente para empaquetar
+        # wasm-pack se usa principalmente para empaquetar, pero también puede compilar
+        # Si output_type == 'wasm', usamos build_package_command
+        if output_type == 'wasm':
+            return self.build_package_command(file_path, output_path, extra_args)
+        # Si no, caemos en el fallback genérico (o podríamos usar build normalmente)
+        # Pero para wasm-pack, lo más común es empaquetar.
         return self.build_package_command(file_path, output_path, extra_args)
 
     def build_package_command(
@@ -31,7 +36,7 @@ class WasmPackStrategy(CompilerStrategy):
         extra_args = extra_args or []
         cmd = ['wasm-pack', 'build']
         if output_path:
-            # wasm-pack no tiene un flag directo para output_path, pero podemos usar --out-dir
+            # wasm-pack no tiene flag directo para output, pero podemos usar --out-dir
             out_dir = os.path.dirname(output_path)
             if out_dir:
                 cmd.extend(['--out-dir', out_dir])
