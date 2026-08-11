@@ -14,33 +14,29 @@ is_macos = sys.platform == 'darwin'
 # CONFIGURACIÓN DEL MÓDULO C++
 # ============================================================
 
-# Forzar compilador en Windows (opcional, pero recomendado)
+# --- Argumentos de compilación y enlace según plataforma ---
 if is_windows:
-    os.environ['CC'] = 'gcc'
-    os.environ['CXX'] = 'g++'
-
-# Argumentos de enlace específicos por plataforma
-if is_windows:
-    extra_link_args = [
-        '-shared',
-        '-static-libgcc',
-        '-static-libstdc++',
-        '-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic'
-    ]
-elif is_linux:
-    extra_link_args = ['-shared', '-fPIC']
-else:  # macOS: NO forzar flags, dejar que setuptools añada -bundle
+    # Usar MSVC (no MinGW) → sin flags de GCC
+    extra_compile_args = []
     extra_link_args = []
+    # Nota: pybind11 ya añade los flags necesarios para MSVC (/EHsc, /MD, etc.)
+else:
+    # Linux / macOS: usar GCC/Clang
+    extra_compile_args = ['-std=c++11', '-O3']
+    if is_linux:
+        extra_link_args = ['-shared', '-fPIC']
+    else:  # macOS
+        extra_link_args = []   # setuptools añade -bundle automáticamente
 
 cpp_module = Extension(
-    'src.module.cpp_module',          # Ruta final: src/module/cpp_module.so
+    'src.module.cpp_module',
     sources=[
         'cpp_module/detector.cpp',
         'cpp_module/bindings.cpp'
     ],
     include_dirs=[pybind11.get_include()],
     language='c++',
-    extra_compile_args=['-std=c++11', '-O3'],
+    extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
 )
 
@@ -58,18 +54,16 @@ setup(
     author_email='bgarciaguibert@gmail.com',
     url='https://github.com/bryangarcia1204/compiler',
     license='MIT',
+
     packages=find_packages(),
 
-    # Módulo C++
     ext_modules=[cpp_module],
 
-    # Dependencias
     install_requires=[
         'PyQt5>=5.15',
         'pybind11>=3.1',
     ],
 
-    # Puntos de entrada (GUI y CLI)
     entry_points={
         'console_scripts': [
             'compilador = src.main:main',
@@ -81,10 +75,10 @@ setup(
     zip_safe=False,
     python_requires='>=3.8',
 
-    # Opciones de compilación (para Windows usa mingw32)
+    # Opciones de compilación: en Windows usamos MSVC (por defecto), en Unix usamos el compilador por defecto
     options={
         'build_ext': {
-            'compiler': 'mingw32' if is_windows else 'unix',
+            'compiler': 'msvc' if is_windows else 'unix',
         }
     },
 
