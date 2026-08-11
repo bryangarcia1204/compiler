@@ -58,8 +58,6 @@ setup(
     author_email='bgarciaguibert@gmail.com',
     url='https://github.com/bryangarcia1204/compiler',
     license='MIT',
-
-    # Paquetes: detecta automáticamente src/ y sus submódulos
     packages=find_packages(),
 
     # Módulo C++
