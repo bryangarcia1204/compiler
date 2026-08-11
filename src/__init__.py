@@ -14,7 +14,7 @@ __author__ = "Brayan M."
 __email__ = "bgarciaguibert@gmail.com"
 __license__ = "MIT"
 
-# Importar componentes principales para facilitar el uso
+# Importar componentes principales para facilitar el uso.
 from src.main import main
 from src.compiler_detector import CompilerDetector
 from src.language_detector import LanguageDetector
