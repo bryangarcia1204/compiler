@@ -23,7 +23,7 @@ def main():
     subparsers = parser.add_subparsers(dest='command', required=True, help='Comando a ejecutar')
 
     # ── list-tools ──
-    parser_list = subparsers.add_parser('list-tools', help='Lista las herramientas detectadas en el sistema')
+    subparsers.add_parser('list-tools', help='Lista las herramientas detectadas en el sistema')
 
     # ── compile ──
     parser_compile = subparsers.add_parser('compile', help='Compila un archivo fuente')
