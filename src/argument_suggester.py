@@ -1,6 +1,6 @@
-
 """
-Módulo que proporciona listas de argumentos comunes para diferentes herramientas de compilación/empaquetado.
+Módulo que proporciona listas de argumentos comunes
+para diferentes herramientas de compilación/empaquetado.
 """
 
 class ArgumentSuggester:
