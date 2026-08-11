@@ -70,42 +70,7 @@ jobs:
           pytest tests/ -v \
             --cov=src \
             --cov-report=xml \
-            --cov-report=term \
-            -m "not gui and not integration"
-
-      # ── PRUEBAS DE INTEGRACIÓN ──
-      - name: Run integration tests (Linux)
-        if: runner.os == 'Linux'
-        timeout-minutes: 15
-        run: |
-          pytest tests/ -v \
-            --cov=src \
-            --cov-append \
-            -m "integration"
-
-      - name: Run integration tests (macOS)
-        if: runner.os == 'macOS'
-        timeout-minutes: 15
-        run: |
-          pytest tests/ -v \
-            --cov=src \
-            --cov-append \
-            -m "integration"
-
-      - name: Run integration tests (Windows)
-        if: runner.os == 'Windows'
-        timeout-minutes: 15
-        run: |
-          pytest tests/ -v \
-            --cov=src \
-            --cov-append \
-            -m "integration"
-
-      # ── PRUEBAS GUI (solo en Linux con Xvfb) ──
-      - name: Run GUI tests (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          xvfb-run --auto-servernum pytest tests/ -v -m "gui"
+            --cov-report=term
 
       # ── SUBIR COBERTURA ──
       - name: Upload coverage to Codecov
