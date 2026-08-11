@@ -56,7 +56,7 @@ setup(
     license='MIT',
     
     # ⬅️ CAMBIADO: encuentra paquetes en src/
-    packages=find_packages(include=['src', 'src.*'])
+    packages=find_packages()
     package_dir={'': '.'},
     
     # ⬅️ CAMBIADO: el módulo C++ se instala dentro de src/
