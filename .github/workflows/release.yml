@@ -46,11 +46,12 @@ jobs:
         run: |
           brew install gcc llvm
 
-      - name: Install Windows system deps
+      # En Windows ya no necesitamos MinGW, usamos MSVC (ya instalado)
+
+      # ── CONFIGURAR MSVC EN WINDOWS ──
+      - name: Configure MSVC (Windows)
         if: runner.os == 'Windows'
-        run: |
-          # mingw32 ya está instalado en el runner
-          echo "Windows build environment ready"
+        uses: ilammy/msvc-dev-cmd@v1
 
       # ── INSTALAR DEPENDENCIAS PYTHON ──
       - name: Install Python dependencies
@@ -58,16 +59,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # ── COMPILAR MÓDULO C++ ──
-      - name: Build C++ extension (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          python setup.py build_ext --inplace
-
-      - name: Build C++ extension (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          python setup.py build_ext --inplace --compiler=mingw32
+      # ── COMPILAR MÓDULO C++ (UNIFICADO) ──
+      - name: Build C++ extension
+        run: python setup.py build_ext --inplace
 
       # ── CREAR EJECUTABLE CON PYINSTALLER ──
       - name: Build executable (Linux/macOS)
@@ -79,20 +73,19 @@ jobs:
             --name ${{ matrix.artifact_name }} \
             --add-data "src:src" \
             src/main.py
-          # Verificar que se creó el ejecutable
           test -f dist/${{ matrix.artifact_name }} || echo "Build failed"
 
       - name: Build executable (Windows)
         if: runner.os == 'Windows'
+        shell: bash
         run: |
-          pyinstaller ^
-            --onefile ^
-            --windowed ^
-            --name ${{ matrix.artifact_name }} ^
-            --add-data "src;src" ^
+          pyinstaller \
+            --onefile \
+            --windowed \
+            --name ${{ matrix.artifact_name }} \
+            --add-data "src;src" \
             src/main.py
-          # Verificar que se creó el ejecutable
-          dir dist\\
+          ls -la dist/
 
       # ── COMPRIMIR PARA SUBIR ──
       - name: Compress artifact (Linux/macOS)
