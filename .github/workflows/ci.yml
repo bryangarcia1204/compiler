@@ -149,7 +149,7 @@ jobs:
       - name: Test PyInstaller build
         run: |
           pyinstaller --onefile --windowed --name compilador src/main.py
-          ls -la dist/ || dir dist\\
+          ls dist/ || dir dist\\
 
       - name: Upload build artifact (optional)
         uses: actions/upload-artifact@v4
