@@ -23,6 +23,7 @@ from src.error_parser import ErrorParser
 from src.argument_suggester import ArgumentSuggester
 from src.output_types import OUTPUT_TYPE_MAP
 from src.logger import Logger
+from src.module import cpp_module
 
 # Definir qué se exporta cuando alguien hace "from src import *"
 __all__ = [
@@ -34,6 +35,7 @@ __all__ = [
     'ArgumentSuggester',
     'OUTPUT_TYPE_MAP',
     'Logger',
+    'cpp_module',
 ]
 
 # Información del paquete

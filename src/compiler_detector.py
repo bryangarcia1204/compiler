@@ -98,7 +98,7 @@ class CompilerDetector:
 
             # 1. Módulo C++
             try:
-                from .cpp_module import cpp_module
+                from .module import cpp_module
                 cpp_tools = cpp_module.detect_compilers()
                 for tool in cpp_tools:
                     tools.append({
