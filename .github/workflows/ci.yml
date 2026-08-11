@@ -77,7 +77,7 @@ jobs:
       - name: Build C++ extension (Windows)
         if: runner.os == 'Windows'
         run: |
-          python setup.py build_ext --inplace --compiler=mingw32
+          python setup.py build_ext --inplace
 
       # ── PRUEBAS UNITARIAS ──
       - name: Run unit tests
