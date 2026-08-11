@@ -34,7 +34,7 @@ cpp_module = Extension(
             '-static-libstdc++',
         ] + (
             # En Windows, enlazar estáticamente winpthread
-            ['-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic'] if is_windows else []
+            ['-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic', '-static'] if is_windows else []
         )
     ) if is_windows else ['-shared', '-fPIC']  # Linux/macOS
 )
