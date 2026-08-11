@@ -76,11 +76,12 @@ En Windows, asegúrate de tener MinGW o MSVC configurado correctamente.
 Interfaz Gráfica (GUI)
     
     compilador
-
+ 
 O, si estás en el directorio del proyecto:
 
-
     python -m src.main
+
+* Si al ejecutarlos les sale un error (solo a los usuarios de Windows) en una carpeta llamada utils en module les deje el DLL q tienen q usar para q funcione: Solo ponganlo en la misma carpeta q el .pyd y ya se soluciona
 
 Pasos básicos:
 
