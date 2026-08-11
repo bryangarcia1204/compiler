@@ -204,7 +204,7 @@ class CompileWorker(QThread):
                 'output_file': output_file if (self.tool.get('type') == 'compiler' or self.action == 'package') else None
             }
             log.info(f"[Main]Compliacion completa: {show}")
-            log.debug(f"[Main]Datos de salida de la compilacion: {result.get("stdout"), result.get("stderr")}")
+            log.debug(f"[Main]Datos de salida de la compilacion: {result.get('stdout'), result.get('stderr')}")
             self.finished.emit(result)
 
         except Exception as e:
