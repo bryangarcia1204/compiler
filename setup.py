@@ -7,10 +7,8 @@ is_windows = sys.platform == 'win32'
 is_linux = sys.platform.startswith('linux')
 is_macos = sys.platform == 'darwin'
 
-# Argumentos de compilación y enlace
+# Configuración de compilación y enlace
 if is_windows:
-    # En Windows, pybind11 ya añade los flags correctos (/EHsc, /MD, etc.)
-    # No añadimos nada extra para evitar conflictos
     extra_compile_args = []
     extra_link_args = []
 else:
@@ -19,10 +17,7 @@ else:
 
 cpp_module = Extension(
     'src.module.cpp_module',
-    sources=[
-        'cpp_module/detector.cpp',
-        'cpp_module/bindings.cpp'
-    ],
+    sources=['cpp_module/detector.cpp', 'cpp_module/bindings.cpp'],
     include_dirs=[pybind11.get_include()],
     language='c++',
     extra_compile_args=extra_compile_args,
