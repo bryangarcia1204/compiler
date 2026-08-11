@@ -1,264 +1,219 @@
-markdown
+ ⚙️ Compilador/Empaquetador Profesional
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python Version"/>
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License MIT"/>
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Multiplatform"/>
-  <img src="https://img.shields.io/badge/UI-PyQt5-41CD52?style=for-the-badge&logo=qt&logoColor=white" alt="PyQt5"/>
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
-</p>
+[![CI](https://github.com/bryangarcia1204/compiler/actions/workflows/ci.yml/badge.svg)](https://github.com/bryangarcia1204/compiler/actions/workflows/ci.yml)
+[![Release](https://github.com/bryangarcia1204/compiler/actions/workflows/release.yml/badge.svg)](https://github.com/bryangarcia1204/compiler/releases)
+[![codecov](https://codecov.io/gh/bryangarcia1204/compiler/branch/main/graph/badge.svg)](https://codecov.io/gh/bryangarcia1204/compiler)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Versions](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/bryangarcia1204/compiler)
 
-<h1 align="center">🛠️ Compilador / Empaquetador Profesional</h1>
-
-<p align="center">
-  <strong>Compila y empaqueta código fuente en múltiples lenguajes con un solo clic.</strong><br/>
-  Detecta automáticamente las herramientas instaladas y te ofrece las opciones de salida más adecuadas.
-</p>
-
-<br/>
-
-## 📖 Tabla de Contenidos
-
-- [🚀 Características](#-características)
-- [📸 Capturas de pantalla](#-capturas-de-pantalla)
-- [⚙️ Instalación](#️-instalación)
-  - [Requisitos previos](#requisitos-previos)
-  - [Pasos de instalación](#pasos-de-instalación)
-- [🖥️ Uso](#️-uso)
-  - [Interfaz gráfica](#interfaz-gráfica)
-  - [Línea de comandos](#línea-de-comandos)
-- [📁 Estructura del proyecto](#-estructura-del-proyecto)
-- [🧪 Pruebas](#-pruebas)
-- [🤝 Contribuir](#-contribuir)
-- [📄 Licencia](#-licencia)
-- [📬 Contacto](#-contacto)
+> **Aplicación de escritorio y CLI** que detecta automáticamente compiladores, intérpretes y empaquetadores instalados en tu sistema, permitiéndote compilar o empaquetar archivos fuente en múltiples formatos con solo unos clics.
 
 ---
 
 ## 🚀 Características
 
-| Característica | Descripción |
-|----------------|-------------|
-| 🔍 **Detección inteligente** | Escanea tu sistema en busca de compiladores (GCC, Clang, MSVC, Rust, Go, Java, C#), intérpretes (Python, Node.js) y empaquetadores (PyInstaller, pkg, wasm-pack, etc.). |
-| 🎯 **Filtrado dinámico** | Los tipos de salida disponibles se adaptan automáticamente al lenguaje y a la herramienta seleccionada. |
-| ⚡ **Multiplataforma** | Funciona en **Windows**, **Linux** y **macOS** sin modificaciones. |
-| 🎨 **Interfaz moderna** | Diseño oscuro y limpio con PyQt5, con soporte para temas y atajos de teclado. |
-| 💾 **Configuración persistente** | Guarda automáticamente el último archivo, herramienta, argumentos y modo de lanzamiento (Release/Debug). |
-| 📦 **Múltiples formatos de salida** | Genera ejecutables, bibliotecas dinámicas/estáticas, objetos, módulos Python, paquetes, WASM, APK, JAR, etc. |
-| 🧩 **Sugerencias de argumentos** | Ofrece una lista de flags comunes para cada herramienta (GCC, Clang, Rustc, etc.). |
-| 🛡️ **Manejo de errores** | Analiza y muestra errores de compilación con colores y contexto (línea, archivo, tipo). |
-| 🧪 **Pruebas unitarias** | Incluye un conjunto básico de pruebas para asegurar el correcto funcionamiento. |
+- ✅ **Detección automática** de compiladores e intérpretes (GCC, Clang, Rust, Go, Java, Python, Node.js, .NET, etc.)
+- ✅ **Soporte multiplataforma** – funciona en Windows, Linux y macOS.
+- ✅ **Interfaz gráfica moderna** (PyQt5) con modo oscuro y experiencia intuitiva.
+- ✅ **Interfaz de línea de comandos (CLI)** para automatizar builds en scripts.
+- ✅ **Múltiples tipos de salida**: ejecutables, bibliotecas dinámicas/estáticas, objetos, WASM, JAR, wheels, etc.
+- ✅ **Arquitectura modular y extensible**: añade nuevos lenguajes y herramientas mediante **plugins** sin tocar el código base.
+- ✅ **Parsing de errores** con mensajes claros y coloreados.
+- ✅ **Sugerencias de argumentos** para cada herramienta.
+- ✅ **Módulo C++ de alto rendimiento** para la detección rápida de compiladores.
 
 ---
 
-## 📸 Capturas de pantalla
+## 🖼️ Captura de pantalla
 
-> *Próximamente: añade aquí una imagen de la interfaz principal.*
+![Compilador Profesional GUI](https://via.placeholder.com/800x450?text=Compilador+Profesional+GUI)
 
-<p align="center">
-  <img src="screenshot.png" alt="Interfaz principal" width="800"/>
-  <br/>
-  <em>Ventana principal del Compilador Profesional.</em>
-</p>
-
-<p align="center">
-  <img src="screenshot_arguments.png" alt="Sugerencias de argumentos" width="600"/>
-  <br/>
-  <em>Diálogo de sugerencias de argumentos para GCC.</em>
-</p>
+> *(Próximamente: captura real de la interfaz)*
 
 ---
 
-## ⚙️ Instalación
+## 📦 Instalación
 
 ### Requisitos previos
 
-- **Python 3.8 o superior** (descargar desde [python.org](https://python.org))
-- **Compilador C++** (necesario para compilar el módulo de detección):
-  - Windows: [MinGW-w64](https://www.mingw-w64.org/) o [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-  - Linux: `g++` o `clang++` (instalar con `sudo apt install build-essential` en Debian/Ubuntu)
-  - macOS: `clang++` (Xcode Command Line Tools: `xcode-select --install`)
+- **Python 3.8 o superior**
+- **Compilador C++** con soporte para C++11 (GCC, Clang o MSVC).
+- **CMake** (opcional, solo si se compila el módulo C++ manualmente).
 
-### Pasos de instalación
+### Instalación desde PyPI (próximamente)
 
-1. **Clona el repositorio**
 
-   ```bash
-   git clone https://github.com/tu-usuario/compilador-profesional.git
-   cd compilador-profesional
+    pip install compilador-profesional
 
-    (Opcional) Crea un entorno virtual
-    bash
-
-    python -m venv venv
-    source venv/bin/activate        # Linux/macOS
-    venv\Scripts\activate           # Windows
-
-    Instala el paquete en modo editable:
-    
-      pip install -e .
-
-    Esto instalará todas las dependencias (PyQt5, pybind11, etc.) y compilará automáticamente el módulo C++ en tu sistema. Si la compilación falla, asegúrate de tener instalado un compilador C++ y vuelve a intentarlo.
-
-    Si persiste el fallo prueba:
-
-      pip install -e . --no-build-isolation
-
-    Verifica la instalación:
-
-    python -c "import src.cpp_module; print('✅ Módulo C++ cargado correctamente')"
-
-🖥️ Uso
-Interfaz gráfica
-
-La forma más sencilla de usar el compilador es a través de su interfaz gráfica.
+Instalación desde el código fuente
 bash
 
+### Clonar el repositorio
+    git clone https://github.com/bryangarcia1204/compiler.git
+    cd compiler
+
+### Crear y activar un entorno virtual (recomendado)
+    python -m venv venv
+    source venv/bin/activate   # Linux/macOS
+    venv\Scripts\activate    # Windows
+
+### Instalar el paquete en modo editable
+    pip install -e . --no-build-isolation
+
+  **Nota**: --no-build-isolation evita conflictos con el módulo C++ durante el desarrollo.
+
+### Compilación del módulo C++
+
+El módulo C++ se compila automáticamente durante la instalación con pip install -e ..
+Si deseas compilarlo manualmente (por ejemplo, para depuración):
+
+
+    python setup.py build_ext --inplace
+
+En Windows, asegúrate de tener MinGW o MSVC configurado correctamente.
+🧠 Uso
+Interfaz Gráfica (GUI)
+    
     compilador
 
-O directamente:
-bash
+O, si estás en el directorio del proyecto:
+
 
     python -m src.main
 
 Pasos básicos:
 
-    Haz clic en Seleccionar archivo... y elige tu código fuente.
+    Selecciona un archivo fuente.
 
-    El programa detectará automáticamente el lenguaje y te mostrará las herramientas disponibles.
+    Elige la herramienta deseada (se autodetecta).
 
-    Selecciona una herramienta de la lista desplegable.
+    Configura el tipo de salida y argumentos adicionales.
 
-    Opcionalmente, elige el tipo de salida (ejecutable, biblioteca, etc.) y añade argumentos adicionales.
+    Haz clic en Compilar / Ejecutar o Empaquetar.
 
-    Marca Build Release para optimización (si aplica).
+# Interfaz de Línea de Comandos (CLI)
 
-    Elige entre Compilar / Ejecutar (para lenguajes interpretados) o Empaquetar (para generar un ejecutable independiente).
+El proyecto incluye una CLI completa para automatizar tareas.
+Listar herramientas detectadas:
 
-    Haz clic en el botón principal para iniciar el proceso.
+    compilador-cli list-tools
 
-    Revisa la salida en el panel de logs, donde los errores se muestran en rojo y las advertencias en naranja.
 
-Línea de comandos (futura integración):
 
-    Próximamente: soporte para ejecución desde terminal con argumentos.
+### Compilar con autodetección
+    compilador-cli compile hola.c
 
-bash:
+### Compilar con herramienta específica y modo release
+    compilador-cli compile hola.c --tool gcc --release -o hola.exe
 
-    compilador --file main.py --tool PyInstaller --output dist/ --release
+### Compilar una biblioteca dinámica (DLL en Windows)
+    compilador-cli compile hola.c --type dll -o hola.dll
 
-📁 Estructura del proyecto:
-text
+### Compilar con argumentos adicionales
+    compilador-cli compile hola.cpp --args "-std=c++17 -Wall"
 
-    compilador-profesional/
-    ├── src/                          # Código fuente Python
-    │   ├── __init__.py
-    │   ├── main.py                  # Punto de entrada (interfaz PyQt5)
-    │   ├── argument_suggester.py    # Base de datos de flags para cada herramienta
-    │   ├── compilation_engine.py    # Ejecución de comandos de compilación/empaquetado
-    │   ├── compiler_detector.py     # Detección de herramientas instaladas
-    │   ├── error_parser.py          # Análisis y formateo de errores de compilación
-    │   ├── language_detector.py     # Identificación del lenguaje por extensión
-    │   ├── logger.py                # Sistema de logging (consola + archivo)
-    │   └── output_types.py          # Mapa de nombres de salida a códigos internos
-    │
-    ├── cpp_module/                   # Módulo C++ para detección de compiladores
-    │   ├── detector.h
-    │   ├── detector.cpp             # Implementación de detección (GCC, Clang, etc.)
-    │   ├── bindings.cpp             # Enlace con pybind11
-    │   └── setup.py                 # Script de compilación independiente
-    │
-    ├── tests/                        # Pruebas unitarias
-    │   ├── __init__.py
-    │   └── test_detector.py         # Pruebas básicas del detector
-    │
-    ├── .gitignore                    # Archivos ignorados por Git
-    ├── LICENSE                       # Licencia MIT
-    ├── README.md                     # Este archivo
-    ├── requirements.txt              # Dependencias Python
-    ├── setup.py                      # Compilación e instalación del paquete
-    └── pyproject.toml                # Configuración moderna del proyecto
+### Empaquetar un script Python con PyInstaller
+    compilador-cli package script.py --output dist/mi_app
 
-🧪 Pruebas
+### Empaquetar un archivo JavaScript con pkg
+    compilador-cli package app.js --tool pkg
 
-Para ejecutar las pruebas unitarias:
+### Tipos de salida soportados (--type):
+    exe, bin, dll, so, dylib, a, lib, obj, pyd, whl, jar, wasm, etc.
+Consulta la lista completa en output_types.py.
+🧩 Extensibilidad: Añadir nuevos lenguajes (Plugins)
+
+# El motor de compilación está diseñado para ser extensible sin modificar el código base.
+
+  Crea un archivo Python en "src/compilers/plugins/," por ejemplo mylang.py.
+
+  Define una clase que herede de CompilerStrategy e implementa los métodos requeridos.
+
+  Exporta STRATEGY_CLASS = MiClaseStrategy.
+
+Ejemplo mínimo para un compilador ficticio "MiLang":
+
+
+    mylang.py
+
+    from ..base import CompilerStrategy
+
+    class MiLangStrategy(CompilerStrategy):
+        @property
+        def tool_name(self):
+            return 'milang'
+
+        @property
+        def supported_extensions(self):
+            return ['.ml']
+
+        def build_command(self, file_path, output_path=None, extra_args=None,
+                          output_type='exe', release_mode=False):
+            extra_args = extra_args or []
+            cmd = ['milang', 'build']
+            if output_path:
+                cmd.extend(['-o', output_path])
+            if release_mode:
+                cmd.append('--release')
+            if extra_args:
+                cmd.extend(extra_args)
+            cmd.append(file_path)
+            return cmd, None, []
+
+    STRATEGY_CLASS = MiLangStrategy
+
+¡Así de simple! No necesitas modificar compilation_engine.py ni ningún otro archivo.
+🧪 Tests
+
+El proyecto incluye un amplio conjunto de pruebas unitarias y de integración.
 bash
 
-    pytest tests/
+## Ejecutar todas las pruebas
+    pytest tests/ -v
 
-O, si no tienes pytest instalado:
-bash
+## Ejecutar con cobertura
+    pytest tests/ --cov=src --cov-report=html
 
-    python -m unittest discover tests
+## Ejecutar pruebas específicas
+    pytest tests/test_compilation_engine.py -v
 
-Las pruebas verifican la detección de herramientas y el correcto funcionamiento de los módulos principales.
-🤝 Contribuir
+Las pruebas se ejecutan automáticamente en GitHub Actions para Windows, Linux y macOS.
+🤝 Contribución
 
-Las contribuciones son muy bienvenidas. Para colaborar:
+¡Las contribuciones son bienvenidas!
+Puedes ayudar de las siguientes maneras:
+
+    Reportando errores o sugerencias en Issues.
+
+    Añadiendo soporte para nuevas herramientas o lenguajes.
+
+    Mejorando la documentación.
+
+    Refactorizando o mejorando el rendimiento.
+
+***Guía rápida***:
 
     Haz un fork del repositorio.
 
-    Crea una rama para tu funcionalidad o corrección:
-    bash
+    Crea una rama para tu feature (git checkout -b feature/nueva-herramienta).
 
-    git checkout -b feature/nueva-funcionalidad
+    Realiza los cambios y añade pruebas.
 
-    Realiza tus cambios y asegúrate de que las pruebas pasen.
+    Asegúrate de que todas las pruebas pasen.
 
-    Haz commit de tus cambios con un mensaje claro:
-    bash
+    Envía un Pull Request describiendo tus cambios.
 
-    git commit -m "feat: añade soporte para compilador XYZ"
+# 📄 Licencia
 
-    Sube tu rama a GitHub:
-    bash
-
-    git push origin feature/nueva-funcionalidad
-
-    Abre un Pull Request describiendo tus cambios.
-
-Guía de estilo
-
-    Sigue PEP 8 para el código Python.
-
-    Usa Google Style Docstrings para documentar funciones y clases.
-
-    Asegúrate de que todas las pruebas pasen antes de enviar un PR.
-
-📄 Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
-text
-
-MIT License
-
-    Copyright (c) 2025 [Brayan M.]
-
-    Se concede permiso, de forma gratuita, a cualquier persona que obtenga una copia
-    de este software y de los archivos de documentación asociados (el "Software"),
-    para tratar el Software sin restricciones, incluidos, sin limitación, los derechos
-    de uso, copia, modificación, fusión, publicación, distribución, sublicencia y/o
-    venta de copias del Software, y para permitir a las personas a las que se les
-    proporcione el Software que lo hagan, sujeto a las siguientes condiciones:
-
-    El aviso de copyright anterior y este aviso de permiso se incluirán en todas
-    las copias o partes sustanciales del Software.
-
-    EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O
-    IMPLÍCITA, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD,
-    ADECUACIÓN PARA UN PROPÓSITO PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS
-    AUTORES O TITULARES DEL COPYRIGHT SERÁN RESPONSABLES DE NINGUNA RECLAMACIÓN,
-    DAÑOS U OTRAS RESPONSABILIDADES, YA SEA EN UNA ACCIÓN DE CONTRATO, AGRAVIO O
-    DE OTRO TIPO, QUE SURJA DE O EN RELACIÓN CON EL SOFTWARE O EL USO U OTROS
-    ACUERDOS EN EL SOFTWARE.
-
+Este proyecto está bajo la Licencia MIT.
+Consulta el archivo LICENSE para más detalles.
 📬 Contacto
 
     Autor: Brayan M.
 
-    Correo: bgarciaguibert@gmail.com
+    Email: bgarciaguibert@gmail.com
 
-    GitHub: github.com/tu-usuario/compiler
+    GitHub: bryangarcia1204
 
-Si tienes preguntas, sugerencias o encuentras algún error, no dudes en abrir un issue o contactarme directamente.
-<p align="center"> <strong>¡Gracias por usar el Compilador Profesional! 🚀</strong> </p> ```
+⭐ Si te gusta este proyecto, ¡no olvides darle una estrella en GitHub!

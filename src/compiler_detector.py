@@ -206,6 +206,25 @@ class CompilerDetector:
             return tools
 
     @staticmethod
+    def get_tool_for_file(file_path):
+        """Devuelve la herramienta más adecuada para un archivo dado."""
+        ext = os.path.splitext(file_path)[1].lower()
+        tools = CompilerDetector.get_all_tools()
+        # Primero, buscar por extensión exacta
+        for tool in tools:
+            if ext in tool.get('extensions', []):
+                return tool
+        # Segundo, buscar un compilador
+        for tool in tools:
+            if tool.get('type') == 'compiler':
+                return tool
+        # Tercero, buscar un intérprete
+        for tool in tools:
+            if tool.get('type') == 'interpreter':
+                return tool
+        return None
+
+    @staticmethod
     def get_tool_output_capabilities(tool):
         name = tool.get('name', '').lower()
         if name in TOOL_OUTPUT_CAPABILITIES:

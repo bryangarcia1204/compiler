@@ -68,6 +68,7 @@ setup(
     entry_points={
         'console_scripts': [
             'compilador = src.main:main',  # ⬅️ CAMBIADO: punto de entrada
+            'compilador-cli = src.cli:main',
         ]
     },
     
