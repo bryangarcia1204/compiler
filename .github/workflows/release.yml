@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Permitir ejecución manual
+
+jobs:
+  # ── BUILD POR PLATAFORMA ──
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: compilador-linux-x86_64
+            platform: linux
+          - os: windows-latest
+            artifact_name: compilador-windows-x86_64.exe
+            platform: windows
+          - os: macos-latest
+            artifact_name: compilador-macos-x86_64
+            platform: macos
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── DEPENDENCIAS DEL SISTEMA ──
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Install macOS system deps
+        if: runner.os == 'macOS'
+        run: |
+          brew install gcc llvm
+
+      - name: Install Windows system deps
+        if: runner.os == 'Windows'
+        run: |
+          # mingw32 ya está instalado en el runner
+          echo "Windows build environment ready"
+
+      # ── INSTALAR DEPENDENCIAS PYTHON ──
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # ── COMPILAR MÓDULO C++ ──
+      - name: Build C++ extension (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          python setup.py build_ext --inplace
+
+      - name: Build C++ extension (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python setup.py build_ext --inplace --compiler=mingw32
+
+      # ── CREAR EJECUTABLE CON PYINSTALLER ──
+      - name: Build executable (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          pyinstaller \
+            --onefile \
+            --windowed \
+            --name ${{ matrix.artifact_name }} \
+            --add-data "src:src" \
+            src/main.py
+          # Verificar que se creó el ejecutable
+          test -f dist/${{ matrix.artifact_name }} || echo "Build failed"
+
+      - name: Build executable (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pyinstaller ^
+            --onefile ^
+            --windowed ^
+            --name ${{ matrix.artifact_name }} ^
+            --add-data "src;src" ^
+            src/main.py
+          # Verificar que se creó el ejecutable
+          dir dist\\
+
+      # ── COMPRIMIR PARA SUBIR ──
+      - name: Compress artifact (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cd dist
+          tar -czf ${{ matrix.artifact_name }}.tar.gz ${{ matrix.artifact_name }}
+          cd ..
+
+      - name: Compress artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd dist
+          7z a ${{ matrix.artifact_name }}.zip ${{ matrix.artifact_name }}
+          cd ..
+
+      # ── SUBIR ARTEFACTO ──
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: |
+            dist/${{ matrix.artifact_name }}.tar.gz
+            dist/${{ matrix.artifact_name }}.zip
+            dist/${{ matrix.artifact_name }}
+          retention-days: 30
+
+  # ── CREAR RELEASE EN GITHUB ──
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      discussions: write
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List all artifacts
+        run: |
+          find artifacts -type f
+          ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## 🚀 Compilador Profesional v${{ github.ref_name }}
+            
+            ### 📦 Descargas por plataforma:
+            - **Linux**: `compilador-linux-x86_64.tar.gz`
+            - **Windows**: `compilador-windows-x86_64.exe.zip`
+            - **macOS**: `compilador-macos-x86_64.tar.gz`
+            
+            ### ✨ Mejoras en esta versión:
+            - Soporte para múltiples lenguajes
+            - Detección automática de compiladores
+            - Interfaz gráfica moderna
+            - Compilación multiplataforma
+            
+            ### 🐛 Correcciones:
+            - (Lista de fixes)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

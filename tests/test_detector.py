@@ -349,6 +349,55 @@ class TestCompilationEngine(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.engine.build_package_command('main.py', tool)
 
+# Añadir al final de test_detector.py
+
+class TestCompilerDetectorAdvanced(unittest.TestCase):
+    """Pruebas adicionales para el detector."""
+
+    @patch('shutil.which')
+    def test_get_all_tools_with_mocks(self, mock_which):
+        """Simula la detección de herramientas con mocks."""
+        # Simular que todas las herramientas están disponibles
+        mock_which.return_value = '/usr/bin/gcc'
+        tools = CompilerDetector.get_all_tools(force_refresh=True)
+        # Debería haber al menos una herramienta (gcc) aunque otros mocks no están
+        self.assertGreater(len(tools), 0)
+
+    def test_caching(self):
+        """Verifica que la caché evita detecciones repetidas."""
+        # Primera llamada
+        tools1 = CompilerDetector.get_all_tools()
+        # Segunda llamada (debería usar caché)
+        with patch('src.compiler_detector._get_version') as mock_version:
+            # No debería llamarse a _get_version si usa caché
+            tools2 = CompilerDetector.get_all_tools()
+            mock_version.assert_not_called()
+        self.assertEqual(tools1, tools2)
+
+    def test_force_refresh(self):
+        """Verifica que force_refresh invalida la caché."""
+        with patch('src.compiler_detector._get_version') as mock_version:
+            # Primera llamada con force_refresh=True
+            CompilerDetector.get_all_tools(force_refresh=True)
+            # Debería haberse llamado a _get_version al menos una vez
+            self.assertTrue(mock_version.called)
+            mock_version.reset_mock()
+            # Segunda llamada sin force_refresh debería usar caché
+            CompilerDetector.get_all_tools(force_refresh=False)
+            mock_version.assert_not_called()
+
+    @patch('threading.Event')
+    def test_concurrent_detection(self, mock_event):
+        """Simula detección concurrente para probar el bloqueo."""
+        # Hacer que _detecting sea True para simular otra detección en curso
+        CompilerDetector._detecting = True
+        # Llamar a get_all_tools debería esperar y luego retornar caché
+        with patch.object(CompilerDetector, '_cached_tools', [{'name': 'dummy'}]):
+            tools = CompilerDetector.get_all_tools()
+            self.assertEqual(tools, [{'name': 'dummy'}])
+            # Verificar que se llamó a Event().wait
+            mock_event.return_value.wait.assert_called()
+        CompilerDetector._detecting = False
 
 if __name__ == '__main__':
     unittest.main()

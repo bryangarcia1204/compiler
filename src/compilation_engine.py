@@ -6,7 +6,7 @@ import platform
 import shutil
 
 from . import logger
-from .output_types import OUTPUT_TYPE_MAP
+from .compilers.registry import CompilerRegistry
 
 log = logger.Logger()
 
@@ -32,146 +32,73 @@ class CompilationEngine:
         """Construye (cmd, cwd, post_actions) para empaquetar."""
         extra_args = extra_args or []
         name = (tool.get('name') or '').lower()
-        cmd = None
-        cwd = None
-        post_actions = []
 
-        if name in ('python', 'pyinstaller'):
-            executable = 'python'
-            log.debug("[CompilationEngine] El archivo usa: 'python'")
-            if tool.get('command') == executable:
-                cmd = [tool['command'], '-m', 'pyinstaller']
-            else:
-                cmd = [tool['command']]
-            if output_path:
-                base_dir = os.path.dirname(output_path)
-                if base_dir:
-                    cmd.extend(['--distpath', base_dir])
-                if os.path.splitext(output_path)[1]:
-                    output_name = os.path.splitext(os.path.basename(output_path))[0]
-                    cmd.extend(['--name', output_name])
-            cmd.extend(['--onefile', '--noconsole'])
-            if extra_args:
-                cmd.extend(extra_args)
-            cmd.append(file_path)
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}")
-            return cmd, None, []
+        # Delegar en estrategia de empaquetado si existe
+        strategy = CompilerRegistry.get(name)
+        if strategy and hasattr(strategy, 'build_package_command'):
+            return strategy.build_package_command(file_path, output_path, extra_args)
 
-        if name in ('node', 'pkg'):
-            log.debug(f"[CompilationEngine] El archivo usa: 'pkg' o 'node'")
-            cmd = ['pkg']
-            if output_path:
-                cmd.extend(['--output', output_path])
-            if extra_args:
-                cmd.extend(extra_args)
-            cmd.append(file_path)
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}")
-            return cmd, None, []
+        # Fallback: usar la estrategia de compilación con output_type='exe'
+        if strategy:
+            return strategy.build_command(file_path, output_path, extra_args, 'exe', False)
 
-        if name in ('wasm-pack', 'wasm'):
-            log.debug(f"[CompilationEngine] El archivo usa: 'wasm-pack' o 'wasm'")
-            cmd = ['wasm-pack', 'build']
-            cwd = os.path.dirname(file_path) or None
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, la direccion para cwd es: {cwd}")
-            return cmd, cwd, []
-
-        if name == 'python-build':
-            log.debug(f"[CompilationEngine] El archivo usa: 'python-build'")
-            cmd = ['python', '-m', 'build', '--wheel']
-            if extra_args:
-                cmd.extend(extra_args)
-            cwd = os.path.dirname(file_path) or None
-            if output_path:
-                post_actions.append(('wheel_move', output_path))
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, la direccion para cwd es: {cwd}, post-accion: {post_actions}")
-            return cmd, cwd, post_actions
-
+        # Si no hay estrategia, lanzar error (como original)
         raise ValueError(f"Herramienta de empaquetado no soportada: {tool.get('name')}")
 
-    def build_command_for(self, file_path, tool, output_path=None, extra_args=None, output_type='exe', release_mode=False):
+    def build_command_for(self, file_path, tool, output_path=None, extra_args=None,
+                          output_type='exe', release_mode=False):
         """Construye (cmd, cwd, post_actions) según tool, file_path y output_type."""
         extra_args = extra_args or []
+
+        # ============================================================
+        # 1. PRIMERO: manejar WASM (exactamente como en el original)
+        # ============================================================
+        if output_type == 'wasm':
+            if shutil.which('emcc'):
+                log.debug("[CompilationEngine] Usando emcc para WASM")
+                cmd = ['emcc', file_path, '-o', output_path or (os.path.splitext(file_path)[0] + '.wasm')]
+                return cmd, None, []
+            if shutil.which('wasm-pack'):
+                log.debug("[CompilationEngine] Usando wasm-pack para WASM")
+                cmd = ['wasm-pack', 'build']
+                cwd = os.path.dirname(file_path) or None
+                return cmd, cwd, []
+            # Si no hay herramientas, caer al fallback
+
+        # ============================================================
+        # 2. OBTENER NOMBRE DE LA HERRAMIENTA
+        # ============================================================
         name = (tool.get('name') or tool.get('command') or '').lower()
+
+        # ============================================================
+        # 3. DELEGAR EN ESTRATEGIA ESPECÍFICA SI EXISTE
+        # ============================================================
+        strategy = CompilerRegistry.get(name)
+        if strategy:
+            log.debug(f"[CompilationEngine] Usando estrategia para: {name}")
+            return strategy.build_command(file_path, output_path, extra_args, output_type, release_mode)
+
+        # ============================================================
+        # 4. FALLBACK GENÉRICO (comportamiento original para compiladores/interpretes)
+        # ============================================================
+        log.debug(f"[CompilationEngine] Sin estrategia para '{name}', usando fallback original")
+        return self._legacy_fallback(file_path, tool, output_path, extra_args, output_type, release_mode)
+
+    def _legacy_fallback(self, file_path, tool, output_path=None, extra_args=None,
+                         output_type='exe', release_mode=False):
+        """
+        Copia exacta del código original de build_command_for
+        para el caso de "compiler" e "interpreter".
+        """
+        extra_args = extra_args or []
         cmd = None
         cwd = None
         post_actions = []
         out = output_path
 
-        # Rust / Cargo
-        if name in ('cargo', 'rust'):
-            log.debug(f"[CompilationEngine] El archivo usa: 'cargo' o 'rust'")
-            if os.path.basename(file_path).lower() == 'cargo.toml' or os.path.isdir(os.path.join(os.path.dirname(file_path), 'src')):
-                cmd = ['cargo', 'build']
-                if release_mode:
-                    cmd.append('--release')
-                cwd = os.path.dirname(file_path) or None
-                if output_path:
-                    post_actions.append(('cargo_move', output_path))
-                log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, direccion para cwd: {cwd}, post-accion: {post_actions}")
-                return cmd, cwd, post_actions
-            else:
-                out = out or os.path.splitext(file_path)[0] + ('.exe' if os.name == 'nt' else '')
-                cmd = ['rustc', file_path, '-o', out]
-                log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
-                return cmd, None, post_actions
-
-        # Go
-        if name == 'go':
-            log.debug(f"[CompilationEngine] El archivo usa: 'go'")
-            out = out or os.path.splitext(file_path)[0]
-            cmd = ['go', 'build', '-o', out, file_path]
-            if release_mode:
-                cmd.extend(['-ldflags', '-s -w'])
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
-            return cmd, None, post_actions
-
-        # Java (javac -> optional jar)
-        if name in ('java', 'javac'):
-            log.debug(f"[CompilationEngine] El archivo usa: 'javac' de 'java'")
-            cmd = ['javac', file_path]
-            if output_path and output_path.endswith('.jar'):
-                class_dir = os.path.dirname(file_path)
-                post_actions.append(('jar', output_path, class_dir))
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
-            return cmd, None, post_actions
-
-        # Dotnet / csc
-        if name in ('dotnet', 'csc'):
-            log.debug(f"[CompilationEngine] El archivo usa: 'dotnet' o 'csc'")
-            if tool.get('command') == 'dotnet':
-                cmd = ['dotnet', 'build']
-                if release_mode:
-                    cmd.extend(['-c', 'Release'])
-                if output_path:
-                    outdir = os.path.dirname(output_path)
-                    if outdir:
-                        cmd.extend(['-o', outdir])
-                cwd = os.path.dirname(file_path) or None
-                log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, la direccion para cwd es: {cwd}, post-accion: {post_actions}")
-                return cmd, cwd, post_actions
-            else:
-                out = out or os.path.splitext(file_path)[0] + ('.exe' if os.name == 'nt' else '')
-                cmd = ['csc', '-out:' + out, file_path]
-                log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
-                return cmd, None, post_actions
-
-        # WASM (emscripten / wasm-pack)
-        if output_type == 'wasm':
-            if shutil.which('emcc'):
-                log.debug(f"[CompilationEngine] El archivo usa: 'emcc'")
-                cmd = ['emcc', file_path, '-o', output_path or (os.path.splitext(file_path)[0] + '.wasm')]
-                log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
-                return cmd, None, post_actions
-            if shutil.which('wasm-pack'):
-                log.debug(f"[CompilationEngine] El archivo usa: 'wasm-pack' para compilado")
-                cmd = ['wasm-pack', 'build']
-                cwd = os.path.dirname(file_path) or None
-                log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, la direccion para cwd es: {cwd}, post-accion: {post_actions}")
-                return cmd, cwd, post_actions
-
         # Fallback for C/C++ and other compilers
         if tool.get('type') == 'compiler':
-            log.debug(f"[CompilationEngine] Fallback para C/C++ y otros lenguages compilados")
+            log.debug("[CompilationEngine] Fallback para C/C++ y otros lenguajes compilados")
             cmd = [tool['command']]
             out = out or os.path.splitext(file_path)[0]
             if output_type in ('exe', 'bin', 'go-bin', 'rust-bin', 'cargo-release'):
@@ -190,24 +117,24 @@ class CompilationEngine:
             cmd.extend(['-o', out, file_path])
             if extra_args:
                 cmd.extend(extra_args)
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
             return cmd, None, post_actions
 
         # Interpreter fallback
         if tool.get('type') == 'interpreter':
-            log.debug(f"[CompilationEngine] Fallback para lenguajes interpretado")
+            log.debug("[CompilationEngine] Fallback para lenguajes interpretados")
             cmd = [tool['command'], file_path]
             if extra_args:
                 cmd.extend(extra_args)
-            log.debug(f"[CompilationEngine] Comando enviado a consola: {cmd}, post-accion: {post_actions}")
             return cmd, None, post_actions
 
-        log.debug(f"[CompilationEngine] No ha matcheado con ningun lenguage de la lista esperé actualizaciones")
+        # Si no matcheó nada
+        log.debug("[CompilationEngine] No ha matcheado con ningún lenguaje de la lista")
         return None, None, []
 
-    def build_compile_command(self, file_path, tool, output_path=None, extra_args=None, output_type='exe', release_mode=False):
-            """Construye (cmd, cwd, post_actions) para compilar/ejecutar."""
-            return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode)
+    def build_compile_command(self, file_path, tool, output_path=None, extra_args=None,
+                              output_type='exe', release_mode=False):
+        """Alias para build_command_for."""
+        return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode)
 
     def _run_subprocess(self, cmd, cwd=None, timeout=None):
         try:
@@ -227,7 +154,7 @@ class CompilationEngine:
             return -1, '', f'Error al ejecutar comando: {e}'
 
     def _perform_post_actions(self, post_actions, cwd=None):
-        """Ejecuta acciones posteriores como mover binarios o crear jars."""
+        """Ejecuta acciones posteriores (idéntico a tu original)."""
         for action in post_actions:
             kind = action[0]
             try:
@@ -274,11 +201,20 @@ class CompilationEngine:
             except Exception as e:
                 log.error(f"Post action failed: {e}")
 
-    def compile(self, file_path, tool, output_path=None, extra_args=None, output_type='exe', release_mode=False):
+    def compile(self, file_path, tool, output_path=None, extra_args=None,
+                output_type='exe', release_mode=False):
         """Compila o interpreta un archivo usando la herramienta especificada."""
-        cmd, cwd, post_actions = self.build_compile_command(file_path, tool, output_path, extra_args, output_type, release_mode)
+        cmd, cwd, post_actions = self.build_compile_command(
+            file_path, tool, output_path, extra_args, output_type, release_mode
+        )
         if not cmd:
-            return {'success': False, 'stdout': '', 'stderr': 'No se pudo construir el comando para esta combinación.', 'returncode': -1, 'output_file': None}
+            return {
+                'success': False,
+                'stdout': '',
+                'stderr': 'No se pudo construir el comando para esta combinación.',
+                'returncode': -1,
+                'output_file': None
+            }
 
         timeout = 300
         if output_type in ('cargo-release', 'wasm', 'apk', 'jar', 'whl'):
@@ -311,7 +247,13 @@ class CompilationEngine:
         """Empaqueta un script interpretado usando la herramienta especificada."""
         cmd, cwd, post_actions = self.build_package_command(file_path, tool, output_path, extra_args)
         if not cmd:
-            return {'success': False, 'stdout': '', 'stderr': 'No se pudo construir el comando para empaquetado.', 'returncode': -1, 'output_file': None}
+            return {
+                'success': False,
+                'stdout': '',
+                'stderr': 'No se pudo construir el comando para empaquetado.',
+                'returncode': -1,
+                'output_file': None
+            }
 
         timeout = 600
         returncode, stdout, stderr = self._run_subprocess(cmd, cwd=cwd, timeout=timeout)

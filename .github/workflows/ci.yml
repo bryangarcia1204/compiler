@@ -1,47 +1,181 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
 
 jobs:
+  # ── PRUEBAS UNITARIAS Y DE INTEGRACIÓN ──
   test:
-    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11']
+        exclude:
+          # Excluir combinaciones que pueden tener problemas
+          - os: windows-latest
+            python-version: '3.8'  # Problemas conocidos con pybind11 en Win + Python 3.8
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov
-    
-    - name: Compile C++ module (Linux/macOS)
-      if: runner.os != 'Windows'
-      run: |
-        python setup.py build_ext --inplace
-    
-    - name: Compile C++ module (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        python setup.py build_ext --inplace --compiler=mingw32
-    
-    - name: Run tests
-      run: |
-        pytest tests/ -v --cov=src --cov-report=html
-    
-    - name: Upload coverage report
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: false
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            setup.py
+
+      # ── INSTALACIÓN DE DEPENDENCIAS POR PLATAFORMA ──
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc \
+            g++ \
+            clang \
+            python3-dev \
+            xvfb  # Para pruebas GUI headless
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            gcc \
+            llvm \
+            python3
+
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: |
+          # mingw32 ya viene en el runner de Windows
+          # Verificar que está instalado
+          gcc --version || echo "gcc not found"
+          g++ --version || echo "g++ not found"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-qt pytest-xdist pytest-timeout
+
+      # ── COMPILACIÓN DEL MÓDULO C++ ──
+      - name: Build C++ extension (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          python setup.py build_ext --inplace
+
+      - name: Build C++ extension (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python setup.py build_ext --inplace --compiler=mingw32
+
+      # ── PRUEBAS UNITARIAS ──
+      - name: Run unit tests
+        timeout-minutes: 10
+        run: |
+          pytest tests/ -v \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term \
+
+      # ── SUBIR COBERTURA ──
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: ${{ matrix.os }},py${{ matrix.python-version }}
+          name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      # ── SUBIR LOGS EN CASO DE ERROR ──
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            compilador.log
+            test-*.log
+            pytest*.log
+          retention-days: 7
+
+  # ── LINTING Y ANÁLISIS ESTÁTICO ──
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 black mypy pylint
+
+      - name: Run flake8
+        run: flake8 src/ --max-line-length=100 --count --statistics
+
+      - name: Run black (check)
+        run: black --check src/ --line-length=100
+
+      - name: Run mypy
+        run: mypy src/ --ignore-missing-imports --no-strict-optional
+
+      - name: Run pylint
+        run: pylint src/ --fail-under=7.0 || true  # No fallar, solo informar
+
+  # ── PRUEBA DE BUILD ──
+  build-test:
+    name: Build Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build C++ extension
+        if: runner.os != 'Windows'
+        run: python setup.py build_ext --inplace
+
+      - name: Build C++ extension (Windows)
+        if: runner.os == 'Windows'
+        run: python setup.py build_ext --inplace --compiler=mingw32
+
+      - name: Test PyInstaller build
+        run: |
+          pyinstaller --onefile --windowed --name compilador src/main.py
+          # Verificar que el ejecutable existe
+          ls -la dist/ || dir dist\\
+
+      - name: Upload build artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-test-${{ matrix.os }}
+          path: dist/
+          retention-days: 7

@@ -19,7 +19,7 @@ if is_windows:
 # CONFIGURACIÓN DEL MÓDULO C++
 # ============================================================
 cpp_module = Extension(
-    'src.cpp_module.cpp_module',  # ⬅️ CAMBIADO: ahora está dentro de src/
+    'src.module.cpp_module',  # ⬅️ CAMBIADO: ahora está dentro de src/
     sources=[
         'cpp_module/detector.cpp',
         'cpp_module/bindings.cpp'
@@ -54,7 +54,7 @@ setup(
     license='MIT',
     
     # ⬅️ CAMBIADO: encuentra paquetes en src/
-    packages=find_packages(where='src'),
+    packages=find_packages(),
     package_dir={'': '.'},
     
     # ⬅️ CAMBIADO: el módulo C++ se instala dentro de src/

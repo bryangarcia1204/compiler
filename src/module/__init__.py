@@ -4,6 +4,6 @@ Módulo C++ para detección de compiladores.
 """
 
 # Intentar importar el módulo compilado
-from src.module import cpp_module
+from . import cpp_module
 
 __all__=["cpp_module"]
