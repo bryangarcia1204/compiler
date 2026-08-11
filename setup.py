@@ -7,10 +7,10 @@ is_windows = sys.platform == 'win32'
 is_linux = sys.platform.startswith('linux')
 is_macos = sys.platform == 'darwin'
 
-# Configuración de compilación y enlace
 if is_windows:
-    extra_compile_args = []
-    extra_link_args = []
+    # En Windows, usamos MSVC y enlace estático (/MT) para evitar dependencias de DLL
+    extra_compile_args = ['/MT', '/std:c++17', '/O2']
+    extra_link_args = ['/LTCG']  # Optimización de enlace (opcional)
 else:
     extra_compile_args = ['-std=c++11', '-O3']
     extra_link_args = ['-shared', '-fPIC'] if is_linux else []
