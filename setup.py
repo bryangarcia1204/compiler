@@ -18,27 +18,30 @@ if is_windows:
 # ============================================================
 # CONFIGURACIÓN DEL MÓDULO C++
 # ============================================================
+# Configuración de enlace por plataforma
+if is_windows:
+    extra_link = [
+        '-shared',
+        '-static',
+        '-static-libgcc',
+        '-static-libstdc++',
+        '-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic'
+    ]
+elif is_linux:
+    extra_link = ['-shared', '-fPIC']
+else:  # macOS
+    # No forzar flags, dejar que setuptools gestione
+    extra_link = []
+
+# Definición del módulo
 cpp_module = Extension(
-    'src.module.cpp_module',  # ⬅️ CAMBIADO: ahora está dentro de src/
-    sources=[
-        'cpp_module/detector.cpp',
-        'cpp_module/bindings.cpp'
-    ],
+    'src.module.cpp_module',
+    sources=['cpp_module/detector.cpp', 'cpp_module/bindings.cpp'],
     include_dirs=[pybind11.get_include()],
     language='c++',
     extra_compile_args=['-std=c++11', '-O3'],
-    extra_link_args=(
-        [
-            '-shared',
-            '-static-libgcc',
-            '-static-libstdc++',
-        ] + (
-            # En Windows, enlazar estáticamente winpthread
-            ['-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic', '-static'] if is_windows else []
-        )
-    ) if is_windows else ['-shared', '-fPIC']  # Linux/macOS
+    extra_link_args=extra_link,
 )
-
 # ============================================================
 # CONFIGURACIÓN DEL PAQUETE
 # ============================================================
