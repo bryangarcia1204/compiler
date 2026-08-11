@@ -20,7 +20,7 @@ def main():
         description="Compilador/Empaquetador Profesional - CLI",
         epilog="Usa 'compilador-cli <comando> --help' para más información."
     )
-    subparsers = parser.add_subparsers(dest='command', required=True, help='Comando a ejecutar')
+    subparsers = parser.add_subparsers(dest='command', required=True, help='Comando a ejecutar:')
 
     # ── list-tools ──
     _parser_list = subparsers.add_parser('list-tools', help='Lista las herramientas detectadas en el sistema')
