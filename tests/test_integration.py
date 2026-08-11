@@ -1,4 +1,4 @@
-"""Pruebas de integración para el compilador profesional."""
+"""Pruebas de integración para el compilador profesional"""
 import unittest
 import os
 import sys
