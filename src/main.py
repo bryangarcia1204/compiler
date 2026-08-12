@@ -21,6 +21,9 @@ from .compiler_detector import CompilerDetector
 from .compilation_engine import CompilationEngine
 from .error_parser import ErrorParser
 from .output_types import OUTPUT_TYPE_MAP
+from dotenv import load_dotenv
+
+load_dotenv()
 
 log = logger.Logger()
 
@@ -297,8 +300,13 @@ class MainWindow(QMainWindow):
         tools_layout = QVBoxLayout()
         self.tools_combo = QComboBox()
         self.tools_combo.currentIndexChanged.connect(self.on_tool_selected)
+        # Añadir botón en la barra de herramientas o en el layout
+        self.project_gen_btn = QPushButton("Generador de Proyectos")
+        self.project_gen_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileDialogNewFolder', 0)))
+        self.project_gen_btn.clicked.connect(self.open_project_generator)
         tools_layout.addWidget(QLabel("Seleccione una herramienta:"))
         tools_layout.addWidget(self.tools_combo)
+        tools_layout.addWidget(self.project_gen_btn)
         self.refresh_tools_btn = QPushButton("Refrescar herramientas")
         self.refresh_tools_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_BrowserReload', 0)))
         self.refresh_tools_btn.clicked.connect(self.refresh_tools)
@@ -403,6 +411,20 @@ class MainWindow(QMainWindow):
         self.release_checkbox.stateChanged.connect(self.save_current_config)
 
         self.update_tools_list([])
+
+    def open_project_generator(self):
+        """Abre el diálogo del generador de proyectos."""
+        try:
+            from .project_generator_dialog import ProjectGeneratorDialog
+            dialog = ProjectGeneratorDialog(self)
+            dialog.exec_()
+        except ImportError as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"No se pudo cargar el generador de proyectos:\n{e}"
+            )
+            log.error(f"[MainWindow] Error abriendo generador: {e}")
 
     def show_argument_suggestions(self):
         if not self.selected_tool:

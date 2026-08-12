@@ -23,6 +23,12 @@ from src.error_parser import ErrorParser
 from src.argument_suggester import ArgumentSuggester
 from src.output_types import OUTPUT_TYPE_MAP
 from src.logger import Logger
+from src.project_analyzer import ProjectAnalyzer
+from src.project_generator import ProjectGenerator
+from src.project_generator_dialog import ProjectGeneratorDialog
+from src.ai_client import AIClient
+from src.template_loader import TemplateLoader
+from src.module import cpp_module
 
 # Definir qué se exporta cuando alguien hace "from src import *"
 __all__ = [
@@ -34,6 +40,12 @@ __all__ = [
     'ArgumentSuggester',
     'OUTPUT_TYPE_MAP',
     'Logger',
+    'ProjectAnalyzer',
+    'ProjectGenerator',
+    'ProjectGeneratorDialog',
+    'AIClient',
+    'TemplateLoader',
+    'cpp_module',
 ]
 
 # Información del paquete

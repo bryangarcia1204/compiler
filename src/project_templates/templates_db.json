@@ -1,0 +1,221 @@
+{
+  "version": "1.0.0",
+  "languages": {
+    "python": {
+      "display_name": "Python",
+      "extensions": [".py", ".pyw"],
+      "config_files": {
+        "requirements.txt": {
+          "description": "Lista de dependencias para pip",
+          "template": "# Dependencias del proyecto\n# Generado automáticamente por Compilador Profesional\n\n# Core\n# Añade aquí tus dependencias\n\n# Development\npytest>=7.0.0\nblack>=22.0.0\nruff>=0.1.0\n"
+        },
+        "setup.py": {
+          "description": "Configuración tradicional de paquete Python",
+          "template": "from setuptools import setup, find_packages\n\nsetup(\n    name=\"{project_name}\",\n    version=\"0.1.0\",\n    description=\"Descripción del proyecto\",\n    author=\"Tu Nombre\",\n    author_email=\"tu@email.com\",\n    packages=find_packages(),\n    install_requires=[\n        # Dependencias\n    ],\n    python_requires=\">=3.8\",\n    entry_points={\n        \"console_scripts\": [\n            \"{project_name}=src.main:main\",\n        ],\n    },\n)\n"
+        },
+        "pyproject.toml": {
+          "description": "Configuración moderna de paquete Python",
+          "template": "[project]\nname = \"{project_name}\"\nversion = \"0.1.0\"\ndescription = \"Descripción del proyecto\"\nreadme = \"README.md\"\nrequires-python = \">=3.8\"\nauthors = [\n    {{name = \"Tu Nombre\", email = \"tu@email.com\"}}\n]\ndependencies = [\n    # Dependencias\n]\n\n[project.optional-dependencies]\ndev = [\"pytest\", \"black\", \"ruff\"]\n\n[build-system]\nrequires = [\"setuptools\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.black]\nline-length = 100\n\n[tool.ruff]\nline-length = 100\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\n"
+        },
+        ".gitignore": {
+          "description": "Archivos a ignorar en Git",
+          "template": "__pycache__/\n*.py[cod]\n*.so\n*.pyd\n*.dll\n*.exe\nvenv/\n.env\n.venv\ndist/\nbuild/\n*.egg-info/\n.coverage\nhtmlcov/\n.pytest_cache/\n.mypy_cache/\n.ruff_cache/\n"
+        }
+      },
+      "build_commands": {
+        "install": "pip install -e .",
+        "build": "python -m build",
+        "test": "pytest tests/",
+        "package": "pip install pyinstaller && pyinstaller --onefile --windowed src/main.py"
+      }
+    },
+    "rust": {
+      "display_name": "Rust",
+      "extensions": [".rs"],
+      "config_files": {
+        "Cargo.toml": {
+          "description": "Manifiesto de proyecto Rust",
+          "template": "[package]\nname = \"{project_name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n# Añade aquí tus dependencias\n\n[[bin]]\nname = \"{project_name}\"\npath = \"src/main.rs\"\n\n[profile.release]\nlto = true\ncodegen-units = 1\nstrip = true\n\n[lints.clippy]\nall = {{ level = \"warn\", priority = 10 }}\npedantic = {{ level = \"warn\", priority = 3 }}\n"
+        },
+        "rust-toolchain.toml": {
+          "description": "Versión del toolchain Rust",
+          "template": "[toolchain]\nchannel = \"stable\"\ncomponents = [\"rustfmt\", \"clippy\"]\n"
+        },
+        ".cargo/config.toml": {
+          "description": "Configuración de Cargo",
+          "template": "[build]\n# Configuración por defecto\n"
+        }
+      },
+      "build_commands": {
+        "build": "cargo build",
+        "release": "cargo build --release",
+        "test": "cargo test",
+        "run": "cargo run",
+        "package": "cargo build --release"
+      }
+    },
+    "c": {
+      "display_name": "C",
+      "extensions": [".c", ".h"],
+      "config_files": {
+        "Makefile": {
+          "description": "Makefile para C",
+          "template": "# Makefile para proyecto C\n# Generado por Compilador Profesional\n\nCC = gcc\nCFLAGS = -Wall -Wextra -O2\nLDFLAGS =\n\nTARGET = {project_name}\nSRCS = $(wildcard src/*.c)\nOBJS = $(SRCS:.c=.o)\n\nall: $(TARGET)\n\n$(TARGET): $(OBJS)\n\t$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)\n\n%.o: %.c\n\t$(CC) $(CFLAGS) -c $< -o $@\n\nclean:\n\trm -f $(OBJS) $(TARGET)\n\nrun: $(TARGET)\n\t./$(TARGET)\n\n.PHONY: all clean run\n"
+        },
+        "CMakeLists.txt": {
+          "description": "Configuración de CMake para C",
+          "template": "cmake_minimum_required(VERSION 3.10)\n\nproject({project_name} VERSION 0.1.0)\n\nset(CMAKE_C_STANDARD 11)\nset(CMAKE_C_STANDARD_REQUIRED ON)\n\nfile(GLOB SOURCES \"src/*.c\")\n\nadd_executable({project_name} ${{SOURCES}})\n\ntarget_include_directories({project_name} PRIVATE include)\n"
+        }
+      },
+      "build_commands": {
+        "build": "make",
+        "clean": "make clean",
+        "run": "./{project_name}"
+      }
+    },
+    "cpp": {
+      "display_name": "C++",
+      "extensions": [".cpp", ".cc", ".cxx", ".hpp", ".hxx"],
+      "config_files": {
+        "Makefile": {
+          "description": "Makefile para C++",
+          "template": "# Makefile para proyecto C++\n# Generado por Compilador Profesional\n\nCXX = g++\nCXXFLAGS = -Wall -Wextra -O2 -std=c++17\nLDFLAGS =\n\nTARGET = {project_name}\nSRCS = $(wildcard src/*.cpp)\nOBJS = $(SRCS:.cpp=.o)\n\nall: $(TARGET)\n\n$(TARGET): $(OBJS)\n\t$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)\n\n%.o: %.cpp\n\t$(CXX) $(CXXFLAGS) -c $< -o $@\n\nclean:\n\trm -f $(OBJS) $(TARGET)\n\nrun: $(TARGET)\n\t./$(TARGET)\n\n.PHONY: all clean run\n"
+        },
+        "CMakeLists.txt": {
+          "description": "Configuración de CMake para C++",
+          "template": "cmake_minimum_required(VERSION 3.10)\n\nproject({project_name} VERSION 0.1.0)\n\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\n\nfile(GLOB SOURCES \"src/*.cpp\")\n\nadd_executable({project_name} ${{SOURCES}})\n\ntarget_include_directories({project_name} PRIVATE include)\n"
+        }
+      },
+      "build_commands": {
+        "build": "make",
+        "clean": "make clean",
+        "run": "./{project_name}"
+      }
+    },
+    "go": {
+      "display_name": "Go",
+      "extensions": [".go"],
+      "config_files": {
+        "go.mod": {
+          "description": "Módulo Go",
+          "template": "module {project_name}\n\ngo 1.21\n\nrequire (\n    # Añade aquí tus dependencias\n)\n"
+        },
+        ".gitignore": {
+          "description": "Archivos a ignorar en Git para Go",
+          "template": "# Binarios\n{project_name}\n*.exe\n*.test\n*.out\n\n# Dependencias\nvendor/\n\n# IDEs\n.idea/\n.vscode/\n"
+        }
+      },
+      "build_commands": {
+        "build": "go build -o {project_name}",
+        "test": "go test ./...",
+        "run": "go run main.go",
+        "package": "go build -ldflags=\"-s -w\" -o {project_name}"
+      }
+    },
+    "node": {
+      "display_name": "Node.js",
+      "extensions": [".js", ".mjs", ".cjs"],
+      "config_files": {
+        "package.json": {
+          "description": "Manifiesto de proyecto Node.js",
+          "template": "{{\n  \"name\": \"{project_name}\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Descripción del proyecto\",\n  \"main\": \"index.js\",\n  \"scripts\": {{\n    \"start\": \"node index.js\",\n    \"test\": \"node test.js\"\n  }},\n  \"dependencies\": {{}},\n  \"devDependencies\": {{}}\n}}\n"
+        },
+        ".gitignore": {
+          "description": "Archivos a ignorar en Git para Node.js",
+          "template": "node_modules/\nnpm-debug.log\nyarn-error.log\npackage-lock.json\nyarn.lock\n.env\n"
+        }
+      },
+      "build_commands": {
+        "install": "npm install",
+        "start": "npm start",
+        "package": "pkg . --output {project_name}"
+      }
+    },
+    "java": {
+      "display_name": "Java",
+      "extensions": [".java"],
+      "config_files": {
+        "pom.xml": {
+          "description": "Configuración de Maven para Java",
+          "template": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0\n         http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n    <modelVersion>4.0.0</modelVersion>\n\n    <groupId>com.example</groupId>\n    <artifactId>{project_name}</artifactId>\n    <version>1.0-SNAPSHOT</version>\n\n    <properties>\n        <maven.compiler.source>11</maven.compiler.source>\n        <maven.compiler.target>11</maven.compiler.target>\n    </properties>\n\n    <dependencies>\n        <!-- Añade aquí tus dependencias -->\n    </dependencies>\n\n    <build>\n        <plugins>\n            <plugin>\n                <groupId>org.apache.maven.plugins</groupId>\n                <artifactId>maven-jar-plugin</artifactId>\n                <version>3.2.0</version>\n                <configuration>\n                    <archive>\n                        <manifest>\n                            <mainClass>com.example.{project_name}.Main</mainClass>\n                        </manifest>\n                    </archive>\n                </configuration>\n            </plugin>\n        </plugins>\n    </build>\n</project>\n"
+        },
+        ".gitignore": {
+          "description": "Archivos a ignorar en Git para Java",
+          "template": "*.class\n*.jar\n*.war\n*.ear\ntarget/\n.idea/\n*.iml\n"
+        }
+      },
+      "build_commands": {
+        "build": "mvn clean compile",
+        "package": "mvn clean package",
+        "run": "java -cp target/{project_name}-1.0-SNAPSHOT.jar com.example.{project_name}.Main",
+        "test": "mvn test"
+      }
+    },
+    "dotnet": {
+      "display_name": ".NET/C#",
+      "extensions": [".cs", ".csproj"],
+      "config_files": {
+        "{project_name}.csproj": {
+          "description": "Proyecto .NET",
+          "template": "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <OutputType>Exe</OutputType>\n    <TargetFramework>net8.0</TargetFramework>\n    <ImplicitUsings>enable</ImplicitUsings>\n    <Nullable>enable</Nullable>\n    <RootNamespace>{project_name}</RootNamespace>\n  </PropertyGroup>\n</Project>\n"
+        },
+        ".gitignore": {
+          "description": "Archivos a ignorar en Git para .NET",
+          "template": "bin/\nobj/\n*.user\n*.suo\n*.sln.ide\n"
+        }
+      },
+      "build_commands": {
+        "build": "dotnet build",
+        "run": "dotnet run",
+        "package": "dotnet publish -c Release -o dist/",
+        "test": "dotnet test"
+      }
+    },
+    "php": {
+      "display_name": "PHP",
+      "extensions": [".php"],
+      "config_files": {
+        "composer.json": {
+          "description": "Configuración de Composer para PHP",
+          "template": "{{\n  \"name\": \"vendor/{project_name}\",\n  \"description\": \"Descripción del proyecto\",\n  \"type\": \"project\",\n  \"require\": {{}},\n  \"require-dev\": {{}},\n  \"autoload\": {{\n    \"psr-4\": {{\n      \"App\\\\\": \"src/\"\n    }}\n  }},\n  \"scripts\": {{\n    \"test\": \"phpunit\"\n  }}\n}}\n"
+        }
+      },
+      "build_commands": {
+        "install": "composer install",
+        "test": "composer test",
+        "run": "php index.php"
+      }
+    },
+    "flutter": {
+      "display_name": "Flutter/Dart",
+      "extensions": [".dart"],
+      "config_files": {
+        "pubspec.yaml": {
+          "description": "Configuración de pubspec para Flutter",
+          "template": "name: {project_name}\ndescription: Descripción del proyecto\npublish_to: 'none'\nversion: 1.0.0+1\n\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\n\ndependencies:\n  flutter:\n    sdk: flutter\n  cupertino_icons: ^1.0.8\n\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n  flutter_lints: ^3.0.0\n\nflutter:\n  uses-material-design: true\n"
+        }
+      },
+      "build_commands": {
+        "build": "flutter build apk",
+        "run": "flutter run",
+        "test": "flutter test",
+        "package": "flutter build appbundle"
+      }
+    },
+    "elixir": {
+      "display_name": "Elixir",
+      "extensions": [".ex", ".exs"],
+      "config_files": {
+        "mix.exs": {
+          "description": "Configuración de Mix para Elixir",
+          "template": "defmodule {project_name}.MixProject do\n  use Mix.Project\n\n  def project do\n    [\n      app: :{project_name},\n      version: \"0.1.0\",\n      elixir: \"~> 1.14\",\n      start_permanent: Mix.env() == :prod,\n      deps: deps()\n    ]\n  end\n\n  def application do\n    [\n      extra_applications: [:logger]\n    ]\n  end\n\n  defp deps do\n    []\n  end\nend\n"
+        }
+      },
+      "build_commands": {
+        "build": "mix compile",
+        "test": "mix test",
+        "run": "mix run"
+      }
+    }
+  }
+}
