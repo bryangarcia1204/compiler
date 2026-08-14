@@ -39,9 +39,9 @@
 
 ![Compilador Profesional GUI](assets/screenshot.4.png)
 
-![Compilador Profesional GUI](assets/Captura de pantalla (6).png")
+![Compilador Profesional GUI](assets/Capturadepantalla(6).png)
 
-![Compilador Profesional GUI](assets/Captura de pantalla (7).png)
+![Compilador Profesional GUI](assets/Capturadepantalla(7).png)
 
 ---
 
