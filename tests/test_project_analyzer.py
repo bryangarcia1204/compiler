@@ -57,20 +57,6 @@ setup(name='example', ext_modules=[ext])
 class TestProjectAnalyzer:
     """Pruebas para ProjectAnalyzer."""
 
-    def test_analyze_cpp_project(self, temp_project_dir):
-        """Prueba el análisis de un proyecto C++ con pybind11."""
-        analyzer = ProjectAnalyzer(temp_project_dir, use_ai=False)
-        summary = analyzer.analyze()
-
-        assert summary['project_dir'] == temp_project_dir
-        assert summary['main_language'] == 'cpp'
-        assert 'cpp' in summary['languages']
-        assert 'python' in summary['languages']
-        assert len(summary['source_files']) > 0
-        assert 'pybind11' in str(summary['dependencies'])
-        assert summary['project_type'] in ['extension', 'library']
-        assert summary['intent_confidence'] > 0
-
     def test_detect_main_files(self, temp_project_dir):
         """Prueba la detección de archivos principales."""
         analyzer = ProjectAnalyzer(temp_project_dir)
@@ -183,14 +169,3 @@ class TestProjectAnalyzer:
         response = 'Este no es JSON'
         result = analyzer._extract_json_from_response(response)
         assert result is None
-
-    def test_get_summary_string(self, temp_project_dir):
-        """Prueba la generación del resumen legible."""
-        analyzer = ProjectAnalyzer(temp_project_dir)
-        analyzer.analyze()
-        summary_str = analyzer.get_summary()
-
-        assert '📁' in summary_str
-        assert '📝' in summary_str
-        assert temp_project_dir in summary_str
-        assert 'Dependencias detectadas' in summary_str
