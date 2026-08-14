@@ -33,11 +33,11 @@
 
 ![Compilador Profesional GUI](assets/screenshot.png)
 
-![Compilador Profesional GUI](assets/screenshot.png)
+![Compilador Profesional GUI](assets/screenshot.2.png)
 
-![Compilador Profesional GUI](assets/screenshot.png)
+![Compilador Profesional GUI](assets/screenshot.3.png)
 
-![Compilador Profesional GUI](assets/screenshot.png)
+![Compilador Profesional GUI](assets/screenshot.4.png)
 
 ![Compilador Profesional GUI](assets/screenshot.png)
 
