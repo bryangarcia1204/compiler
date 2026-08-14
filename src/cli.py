@@ -373,7 +373,7 @@ def package_file(args):
         tools = detector.get_all_tools()
         packagers = [t for t in tools if t.get('type') == 'packager' and ext in t.get('extensions', [])]
         if not packagers:
-            print(f"Error: No se encontró un empaquetador para '{file_path}'.", file=sys.stderr)
+            print(f"Error: No se encontró un empaquetador para {file_path}.", file=sys.stderr)
             sys.exit(1)
         tool = packagers[0]
         print(f"Empaquetador autodetectado: {tool.get('name')}")
