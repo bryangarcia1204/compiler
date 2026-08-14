@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import os
-import json
 import subprocess
 import threading
 import pathlib
@@ -21,6 +20,7 @@ from .compiler_detector import CompilerDetector
 from .compilation_engine import CompilationEngine
 from .error_parser import ErrorParser
 from .output_types import OUTPUT_TYPE_MAP
+from .config_manager import load_config, save_config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -94,23 +94,6 @@ QCheckBox {
     spacing: 8px;
 }
 """
-
-def load_config():
-    try:
-        if CONFIG_PATH.exists():
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except Exception:
-        pass
-    return {}
-
-def save_config(data):
-    try:
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
 
 # ========== WORKER ==========
 class CompileWorker(QThread):
@@ -415,9 +398,9 @@ class MainWindow(QMainWindow):
     def open_project_generator(self):
         """Abre el diálogo del generador de proyectos."""
         try:
-            from .project_generator_dialog import ProjectGeneratorDialog
+            from .proyect_editor.project_generator_dialog import ProjectGeneratorDialog
             dialog = ProjectGeneratorDialog(self)
-            dialog.exec_()
+            dialog.show()
         except ImportError as e:
             QMessageBox.critical(
                 self,

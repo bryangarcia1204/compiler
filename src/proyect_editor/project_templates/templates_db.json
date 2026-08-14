@@ -15,7 +15,7 @@
         },
         "pyproject.toml": {
           "description": "Configuración moderna de paquete Python",
-          "template": "[project]\nname = \"{project_name}\"\nversion = \"0.1.0\"\ndescription = \"Descripción del proyecto\"\nreadme = \"README.md\"\nrequires-python = \">=3.8\"\nauthors = [\n    {{name = \"Tu Nombre\", email = \"tu@email.com\"}}\n]\ndependencies = [\n    # Dependencias\n]\n\n[project.optional-dependencies]\ndev = [\"pytest\", \"black\", \"ruff\"]\n\n[build-system]\nrequires = [\"setuptools\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.black]\nline-length = 100\n\n[tool.ruff]\nline-length = 100\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\n"
+          "template": "[project]\nname = \"{project_name}\"\nversion = \"0.1.0\"\ndescription = \"Descripción del proyecto\"\nreadme = \"README.md\"\nrequires-python = \">=3.8\"\nauthors = [\n    {name = \"Tu Nombre\", email = \"tu@email.com\"}\n]\ndependencies = [\n    # Dependencias\n]\n\n[project.optional-dependencies]\ndev = [\"pytest\", \"black\", \"ruff\"]\n\n[build-system]\nrequires = [\"setuptools\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.black]\nline-length = 100\n\n[tool.ruff]\nline-length = 100\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\n"
         },
         ".gitignore": {
           "description": "Archivos a ignorar en Git",

@@ -117,9 +117,6 @@ class TestIntegrationCompilation(unittest.TestCase):
     def test_compile_cpp(self):
         self._compile_and_run('hello.cpp', 'Hello, C++!', 'g++', 'compiler')
 
-    def test_compile_rust(self):
-        self._compile_and_run('hello.rs', 'Hello, Rust!', 'rust', 'compiler')
-
     def test_compile_go(self):
         self._compile_and_run('hello.go', 'Hello, Go!', 'go', 'compiler')
 

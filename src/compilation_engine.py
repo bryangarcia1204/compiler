@@ -114,7 +114,7 @@ class CompilationEngine:
                 cmd.append('-shared')
             if output_type in ('obj',):
                 cmd.append('-c')
-            cmd.extend(['-o', out, file_path])
+            cmd.extend([ out, '-o', file_path])
             if extra_args:
                 cmd.extend(extra_args)
             return cmd, None, post_actions

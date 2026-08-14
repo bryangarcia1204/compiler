@@ -1,26 +1,30 @@
 # src/project_generator_dialog.py
 """
 Diálogo para el generador de proyectos con IA.
+Flujo completo: persistencia, análisis con IA, generación y compilación.
 """
 
 import os
 import sys
-from typing import Dict, Optional
+import json
+from typing import Dict, Optional, Any
 
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QComboBox, QTextEdit, QTabWidget, QCheckBox,
-    QGroupBox, QFileDialog, QMessageBox, QProgressDialog,
-    QWidget, QSplitter, QTreeWidget, QTreeWidgetItem
+    QGroupBox, QFileDialog, QMessageBox, QWidget,
+    QScrollArea, QMainWindow, QSplitter
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 
 from .project_generator import ProjectGenerator
 from .project_analyzer import ProjectAnalyzer
-from .compilation_engine import CompilationEngine
-from .compiler_detector import CompilerDetector
-from . import logger
+from ..compilation_engine import CompilationEngine
+from ..compiler_detector import CompilerDetector
+from ..config_manager import load_project_state, save_project_state, clear_project_state
+from .output_types_analyzer import OUTPUT_TYPE_MAP_ANALIZER
+from .. import logger
 
 log = logger.Logger()
 
@@ -44,42 +48,73 @@ class GenerateWorker(QThread):
             self.error.emit(str(e))
 
 
-class ProjectGeneratorDialog(QDialog):
-    """Ventana principal del generador de proyectos."""
+class EnhanceWorker(QThread):
+    """Worker para mejorar archivos con IA."""
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, generator, project_info, existing_files, custom_prompt):
+        super().__init__()
+        self.generator = generator
+        self.project_info = project_info
+        self.existing_files = existing_files
+        self.custom_prompt = custom_prompt
+
+    def run(self):
+        try:
+            result = self.generator.enhance_files_with_ai(
+                self.project_info,
+                self.existing_files,
+                self.custom_prompt
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class ProjectGeneratorDialog(QMainWindow):
+    """Ventana principal del generador de proyectos con flujo completo."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Generador de Proyectos - Compilador Profesional")
-        self.setGeometry(200, 200, 1000, 700)
+        self.setGeometry(200, 200, 1100, 750)
 
+        # Estado del proyecto
         self.project_dir = ""
         self.project_info = {}
         self.generated_files = {}
         self.edited_files = {}
+        self.build_command = None
+        self.build_description = ""
+        self.has_ai_veredict = False
 
-        self.generator = ProjectGenerator(
-            use_ai=False,
-            api_key=None,
-            api_base=None
-        )
+        # Crear analizador y generador
+        self.analyzer = None
+        self.generator = ProjectGenerator(use_ai=False)
 
-        self.analyzer:ProjectAnalyzer = None
-
+        # Inicializar UI
         self.init_ui()
         self.load_config()
 
     def init_ui(self):
         """Inicializa la interfaz gráfica."""
-        main_layout = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        self.setCentralWidget(scroll)
 
-        # ── Barra superior ──
+        container = QWidget()
+        scroll.setWidget(container)
+        main_layout = QVBoxLayout(container)
+
+        # ── BARRA SUPERIOR ──
         top_layout = QHBoxLayout()
 
         self.dir_label = QLabel("Directorio:")
         self.dir_edit = QLineEdit()
         self.dir_edit.setPlaceholderText("Selecciona un directorio de proyecto...")
         self.dir_edit.textChanged.connect(self.on_dir_changed)
-
 
         self.browse_btn = QPushButton("Examinar...")
         self.browse_btn.clicked.connect(self.browse_directory)
@@ -90,11 +125,13 @@ class ProjectGeneratorDialog(QDialog):
 
         main_layout.addLayout(top_layout)
 
-        # ── Panel de información ──
+        # ── PANEL DE INFORMACIÓN ──
         info_group = QGroupBox("Información del proyecto")
         info_layout = QVBoxLayout()
 
         self.info_label = QLabel("Selecciona un directorio para analizar...")
+        self.info_label.setWordWrap(True)
+        self.info_label.setMinimumHeight(100)
         info_layout.addWidget(self.info_label)
 
         # Botón Analizar
@@ -106,25 +143,30 @@ class ProjectGeneratorDialog(QDialog):
         info_group.setLayout(info_layout)
         main_layout.addWidget(info_group)
 
-        # ── Opciones de generación ──
+        # ── OPCIONES DE GENERACIÓN ──
         options_group = QGroupBox("Opciones de generación")
         options_layout = QVBoxLayout()
 
-        self.provider_combo = QComboBox()
-        self.provider_combo.addItems(["DeepSeek", "OpenAI", "Groq", "Plataformia"])
-        self.provider_combo.setCurrentText("Plataformia")
-        self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
-
-        self.model_edit = QLineEdit()
-        self.model_edit.setPlaceholderText("Modelo (ej. radiance, llama3-70b-8192)")
-        self.model_edit.setText("radiance")
-
         # Checkbox IA
-        self.ai_checkbox = QCheckBox("Usar IA para generar archivos (requiere API key)")
+        self.ai_checkbox = QCheckBox("Usar IA para generar/mejorar archivos")
         self.ai_checkbox.toggled.connect(self.on_ai_toggled)
         options_layout.addWidget(self.ai_checkbox)
-        options_layout.addWidget(self.provider_combo)
-        options_layout.addWidget(self.model_edit)
+
+        # Proveedor y modelo
+        provider_layout = QHBoxLayout()
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItems(["Plataformia", "DeepSeek", "OpenAI", "Groq", "TinyLlama"])
+        self.provider_combo.setCurrentText("Plataformia")
+        self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
+        provider_layout.addWidget(QLabel("Proveedor:"))
+        provider_layout.addWidget(self.provider_combo)
+
+        self.model_edit = QLineEdit()
+        self.model_edit.setPlaceholderText("Modelo (ej. radiance, deepseek-coder)")
+        self.model_edit.setText("agent-xs")
+        provider_layout.addWidget(QLabel("Modelo:"))
+        provider_layout.addWidget(self.model_edit, 1)
+        options_layout.addLayout(provider_layout)
 
         # API Key
         api_layout = QHBoxLayout()
@@ -133,27 +175,35 @@ class ProjectGeneratorDialog(QDialog):
         self.api_edit.setPlaceholderText("sk-...")
         self.api_edit.setEchoMode(QLineEdit.Password)
         self.api_edit.setEnabled(False)
-        api_layout.addWidget(self.api_edit)
+        api_layout.addWidget(self.api_edit, 1)
         options_layout.addLayout(api_layout)
 
         # Prompt personalizado
         options_layout.addWidget(QLabel("Prompt personalizado (opcional):"))
         self.prompt_edit = QTextEdit()
-        self.prompt_edit.setPlaceholderText("Describe qué tipo de proyecto quieres generar...")
-        self.prompt_edit.setMaximumHeight(80)
+        self.prompt_edit.setPlaceholderText("Describe qué tipo de proyecto quieres generar o qué mejoras quieres...")
+        self.prompt_edit.setMaximumHeight(60)
         self.prompt_edit.setEnabled(False)
         options_layout.addWidget(self.prompt_edit)
 
-        # Botón Generar
+        # Botones de acción
+        action_layout = QHBoxLayout()
         self.generate_btn = QPushButton("Generar archivos de configuración")
         self.generate_btn.clicked.connect(self.generate_files)
         self.generate_btn.setEnabled(False)
-        options_layout.addWidget(self.generate_btn)
+        action_layout.addWidget(self.generate_btn)
+
+        self.enhance_btn = QPushButton("Mejorar con IA")
+        self.enhance_btn.clicked.connect(self.enhance_files_with_ai)
+        self.enhance_btn.setEnabled(False)
+        action_layout.addWidget(self.enhance_btn)
+
+        options_layout.addLayout(action_layout)
 
         options_group.setLayout(options_layout)
         main_layout.addWidget(options_group)
 
-        # ── Editor de archivos ──
+        # ── EDITOR DE ARCHIVOS ──
         editor_group = QGroupBox("Editor de archivos")
         editor_layout = QVBoxLayout()
 
@@ -180,10 +230,10 @@ class ProjectGeneratorDialog(QDialog):
         editor_group.setLayout(editor_layout)
         main_layout.addWidget(editor_group, 1)
 
-        # ── Botones finales ──
+        # ── BOTONES FINALES ──
         btn_layout = QHBoxLayout()
         self.close_btn = QPushButton("Cerrar")
-        self.close_btn.clicked.connect(self.accept)
+        self.close_btn.clicked.connect(self.close)
         btn_layout.addStretch()
         btn_layout.addWidget(self.close_btn)
 
@@ -196,16 +246,29 @@ class ProjectGeneratorDialog(QDialog):
     # ──────────────────────────────────────────────────────────
     # MÉTODOS DE LA GUI
     # ──────────────────────────────────────────────────────────
-    def on_provider_changed(self, provider):
-        """Actualiza la URL base según el proveedor seleccionado."""
 
+    def on_provider_changed(self, provider):
+        """Actualiza el modelo por defecto según el proveedor."""
         default_models = {
-            "plataformia": "radiance",
-            "openai": "gpt-4o-mini",
-            "groq": "llama3-70b-8192",
-            "DeepSeek": "deepseek-coder"
+            "Plataformia": "agent-xs",
+            "DeepSeek": "deepseek-coder",
+            "OpenAI": "gpt-4o-mini",
+            "Groq": "llama3-70b-8192",
+            "TinyLlama": "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
         }
         self.model_edit.setText(default_models.get(provider, ""))
+
+        # Si es TinyLlama, mostrar un mensaje sobre la ruta del modelo
+        if provider == "TinyLlama":
+            self.api_edit.setPlaceholderText("No se requiere API key")
+            self.api_edit.setEnabled(False)
+            self.api_edit.setEchoMode(QLineEdit.Normal)
+            self.api_edit.setText("MODELO LOCAL")
+
+    def on_ai_toggled(self, checked):
+        """Habilita/deshabilita opciones de IA."""
+        self.api_edit.setEnabled(checked)
+        self.prompt_edit.setEnabled(checked)
 
     def browse_directory(self):
         """Abre diálogo para seleccionar directorio."""
@@ -221,23 +284,42 @@ class ProjectGeneratorDialog(QDialog):
         """Actualiza el estado del botón Analizar."""
         self.analyze_btn.setEnabled(bool(text.strip()))
 
-    def on_ai_toggled(self, checked: bool):
-        """Habilita/deshabilita opciones de IA."""
-        self.api_edit.setEnabled(checked)
-        self.prompt_edit.setEnabled(checked)
-        if checked:
-            # Cargar API key de la configuración si existe
-            self.api_edit.setText(self.get_saved_api_key())
-
-    def get_saved_api_key(self) -> str:
-        """Obtiene la API key guardada en la configuración."""
-        # Implementar según tu sistema de configuración
-        return ""
-
     def load_config(self):
-        """Carga configuración guardada."""
-        # Aquí puedes cargar la API key desde config.json
-        pass
+        """Carga el estado guardado del proyecto."""
+        state = load_project_state()
+        if state:
+            project_dir = state.get('project_dir')
+            if project_dir and os.path.isdir(project_dir):
+                reply = QMessageBox.question(
+                    self,
+                    "Cargar proyecto",
+                    f"Se encontró un proyecto guardado en:\n{project_dir}\n\n¿Deseas cargarlo?",
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                if reply == QMessageBox.Yes:
+                    self.dir_edit.setText(project_dir)
+                    self.project_info = state.get('summary', {})
+                    self.generated_files = state.get('generated_files', {})
+                    self.edited_files = state.get('edited_files', {})
+                    self.build_command = state.get('build_command')
+                    self.build_description = state.get('build_description', '')
+
+                    # Restaurar pestañas
+                    if self.generated_files:
+                        for name, content in self.generated_files.items():
+                            self.add_file_tab(name, content)
+                        self.save_btn.setEnabled(True)
+                        self.save_compile_btn.setEnabled(True)
+
+                    # Mostrar información
+                    self._update_info_label()
+                    QTimer.singleShot(100, lambda: self.info_label.setText(self.analyzer.get_summary() if self.analyzer else "Proyecto cargado"))
+                    self.generate_btn.setEnabled(True)
+                    self.enhance_btn.setEnabled(True)
+
+    # ──────────────────────────────────────────────────────────
+    # 1. ANÁLISIS DEL PROYECTO
+    # ──────────────────────────────────────────────────────────
 
     def analyze_project(self):
         """Analiza el proyecto de forma semántica."""
@@ -250,84 +332,45 @@ class ProjectGeneratorDialog(QDialog):
         self.analyze_btn.setEnabled(False)
 
         # Crear analizador
-        provider = self.provider_combo.currentText()
+        provider = self.provider_combo.currentText().lower()
         model = self.model_edit.text().strip() or None
+        api_key = self.api_edit.text().strip() if self.ai_checkbox.isChecked() else None
 
         self.analyzer = ProjectAnalyzer(
             self.project_dir,
             use_ai=self.ai_checkbox.isChecked(),
-            provider=provider.lower(),  # <-- convertir a minúsculas
-            api_key=self.api_edit.text().strip(),
+            provider=provider,
+            api_key=api_key,
             model=model
         )
 
+        # Ejecutar análisis
         self.project_info = self.analyzer.analyze()
 
-        # ── OBTENER DATOS CORRECTOS DEL ANÁLISIS ──
-        main_language = self.project_info.get('main_language', 'Desconocido')
-        project_type = self.project_info.get('project_type', 'Desconocido')
-        binary_target = self.project_info.get('binary_target', 'Ninguno')
+        # ── SI IA ACTIVA: OBTENER VEREDICTO ──
+        if self.ai_checkbox.isChecked() and self.analyzer.ai_client:
+            self.info_label.setText("Obteniendo veredicto de IA...")
+            veredict = self.analyzer.get_ai_veredict(self.prompt_edit.toPlainText().strip())
+            if veredict:
+                # Actualizar project_info con el veredicto
+                self.project_info.update(veredict)
+                self.project_info['ai_veredict'] = veredict
+                self.has_ai_veredict = True
+                self.info_label.setText("✅ Veredicto de IA obtenido y aplicado.")
+            else:
+                self.info_label.setText("⚠️ No se pudo obtener veredicto de IA. Usando análisis estándar.")
 
-        # Archivos fuente (de source_files o files)
-        source_files = self.project_info.get('source_files', [])
-        if not source_files:
-            source_files = self.project_info.get('files', [])
+        # ── MOSTRAR INFORMACIÓN ──
+        self._update_info_label()
 
-        # Archivos principales (main_files)
-        main_files = self.project_info.get('main_files', [])
-        main_file = main_files[0] if main_files else None
+        # ── GUARDAR ESTADO ──
+        self._save_state()
 
-        # Dependencias
-        dependencies = list(self.project_info.get('dependencies', set()))[:5]
-
-        # Archivos de configuración
-        config_files = []
-        for entry in self.project_info.get('config_files', []):
-            if isinstance(entry, dict):
-                config_files.append(entry.get('name', ''))
-            elif isinstance(entry, str):
-                config_files.append(os.path.basename(entry))
-
-        # Archivos sugeridos
+        # ── PREGUNTAR SI GENERAR ARCHIVOS ──
         suggested = self.project_info.get('suggested_config_files', [])
+        config_names = [e['name'] for e in self.project_info.get('config_files', [])]
 
-        # Evidencia
-        evidence = self.project_info.get('evidence', [])[:5]
-
-        info_text = f"""
-    📁 **Directorio:** {self.project_dir}
-    📝 **Lenguaje principal:** {main_language}
-    📄 **Tipo de proyecto:** {project_type}
-    📦 **Target binario:** {binary_target}
-    📂 **Archivos fuente:** {len(source_files)}
-    📦 **Dependencias detectadas:** {', '.join(dependencies) or 'Ninguna'}
-    📋 **Configuración existente:** {', '.join(config_files) or 'Ninguna'}
-    💡 **Archivos sugeridos:** {', '.join(suggested) or 'Ninguno'}
-    🎯 **Confianza:** {self.project_info.get('intent_confidence', 0) * 100:.1f}%
-
-    🔍 **Evidencia:**
-    {chr(10).join(['  • ' + e for e in evidence])}
-    """
-
-        if self.project_info.get('ai_suggestions'):
-            ai = self.project_info['ai_suggestions']
-            info_text += f"""
-    🤖 **Sugerencias de IA:**
-    - Tipo: {ai.get('project_type', 'N/A')}
-    - Recomendaciones: {', '.join(ai.get('recommendations', [])[:3])}
-    """
-
-        self.info_label.setText(info_text)
-
-        # Guardar información para uso posterior
-        self.project_info['main_file'] = main_file
-        self.project_info['source_files'] = source_files
-        self.project_info['config_files'] = config_files
-        self.project_info['needs_config_files'] = suggested
-        self.project_info['language'] = main_language
-
-        # Si se detecta que el proyecto necesita archivos, preguntar
-        if suggested:
+        if suggested and not config_names:
             reply = QMessageBox.question(
                 self,
                 "Archivos sugeridos",
@@ -340,7 +383,22 @@ class ProjectGeneratorDialog(QDialog):
                 self.generate_files()
 
         self.generate_btn.setEnabled(True)
+        self.enhance_btn.setEnabled(True)
         self.analyze_btn.setEnabled(True)
+
+    def _update_info_label(self):
+        """Actualiza la etiqueta de información."""
+        if self.analyzer:
+            summary = self.analyzer.get_summary()
+            if self.project_info.get('ai_veredict'):
+                summary += "\n\n🤖 **Veredicto de IA aplicado.**"
+            self.info_label.setText(summary)
+        else:
+            self.info_label.setText("Proyecto analizado. Usa el generador para crear archivos.")
+
+    # ──────────────────────────────────────────────────────────
+    # 2. GENERACIÓN DE ARCHIVOS
+    # ──────────────────────────────────────────────────────────
 
     def generate_files(self):
         """Genera los archivos de configuración."""
@@ -355,14 +413,14 @@ class ProjectGeneratorDialog(QDialog):
             api_key=self.api_edit.text().strip() if self.ai_checkbox.isChecked() else None,
             model=self.model_edit.text().strip() or None
         )
-        
 
         prompt = self.prompt_edit.toPlainText().strip()
 
         self.generate_btn.setEnabled(False)
+        self.enhance_btn.setEnabled(False)
         self.info_label.setText("Generando archivos...")
 
-        # Crear worker para generación asíncrona
+        # Crear worker
         self.worker = GenerateWorker(self.generator, self.project_info, prompt)
         self.worker.finished.connect(self.on_generation_finished)
         self.worker.error.connect(self.on_generation_error)
@@ -377,33 +435,117 @@ class ProjectGeneratorDialog(QDialog):
         for i in range(self.file_tabs.count() - 1, -1, -1):
             self.file_tabs.removeTab(i)
 
-        # Mostrar cada archivo en un tab
+        # Mostrar archivos
         for filename, content in files.items():
             self.add_file_tab(filename, content)
 
         self.generate_btn.setEnabled(True)
+        self.enhance_btn.setEnabled(True)
         self.save_btn.setEnabled(True)
         self.save_compile_btn.setEnabled(True)
 
         self.info_label.setText(f"✅ Archivos generados: {len(files)}")
-
-        if self.generator.use_ai:
-            log.info(f"[ProjectGeneratorDialog] Archivos generados con IA: {list(files.keys())}")
-        else:
-            log.info(f"[ProjectGeneratorDialog] Archivos generados con plantillas: {list(files.keys())}")
+        self._save_state()
 
     def on_generation_error(self, error: str):
         """Maneja errores en la generación."""
         self.generate_btn.setEnabled(True)
+        self.enhance_btn.setEnabled(True)
         QMessageBox.critical(self, "Error", f"Error al generar archivos:\n{error}")
         self.info_label.setText("❌ Error al generar archivos")
+
+    # ──────────────────────────────────────────────────────────
+    # 3. MEJORA DE ARCHIVOS CON IA
+    # ──────────────────────────────────────────────────────────
+
+    def enhance_files_with_ai(self):
+        """Mejora los archivos de configuración con IA."""
+        if not self.generated_files:
+            QMessageBox.warning(self, "Error", "Primero genera los archivos o abre un proyecto.")
+            return
+
+        if not self.ai_checkbox.isChecked():
+            QMessageBox.warning(self, "Error", "Activa el modo IA para usar esta función.")
+            return
+
+        # Recolectar archivos actuales
+        current_files = {}
+        for i in range(self.file_tabs.count()):
+            editor = self.file_tabs.widget(i)
+            filename = self.file_tabs.tabText(i).lstrip("*")
+            if editor:
+                current_files[filename] = editor.toPlainText()
+
+        prompt = self.prompt_edit.toPlainText().strip()
+
+        self.enhance_btn.setEnabled(False)
+        self.generate_btn.setEnabled(False)
+        self.info_label.setText("Mejorando archivos con IA...")
+
+        self.generator = ProjectGenerator(
+                    use_ai=self.ai_checkbox.isChecked(),
+                    provider=self.provider_combo.currentText().lower(),
+                    api_key=self.api_edit.text().strip() if self.ai_checkbox.isChecked() else None,
+                    model=self.model_edit.text().strip() or None
+                )
+        # Crear worker
+        self.enhance_worker = EnhanceWorker(
+            self.generator,
+            self.project_info,
+            current_files,
+            prompt
+        )
+        self.enhance_worker.finished.connect(self.on_enhance_finished)
+        self.enhance_worker.error.connect(self.on_enhance_error)
+        self.enhance_worker.start()
+
+    def on_enhance_finished(self, result: Dict):
+        """Maneja la finalización de la mejora."""
+        files = result.get('files', {})
+        build_cmd = result.get('build_command')
+
+        self.generated_files = files
+        self.edited_files = files.copy()
+        self.build_command = build_cmd
+        if build_cmd:
+            self.build_description = build_cmd.get('description', 'Comando de build')
+
+        # Actualizar tabs
+        for i in range(self.file_tabs.count() - 1, -1, -1):
+            self.file_tabs.removeTab(i)
+
+        for filename, content in files.items():
+            self.add_file_tab(filename, content)
+
+        self.enhance_btn.setEnabled(True)
+        self.generate_btn.setEnabled(True)
+        self.save_btn.setEnabled(True)
+        self.save_compile_btn.setEnabled(True)
+
+        info = f"✅ Archivos mejorados: {len(files)}"
+        if self.build_command:
+            info += f" | Comando de build: {self.build_description}"
+        self.info_label.setText(info)
+
+        self._save_state()
+
+    def on_enhance_error(self, error: str):
+        """Maneja errores en la mejora."""
+        self.enhance_btn.setEnabled(True)
+        self.generate_btn.setEnabled(True)
+        QMessageBox.critical(self, "Error", f"Error al mejorar archivos:\n{error}")
+        self.info_label.setText("❌ Error al mejorar archivos")
+
+    # ──────────────────────────────────────────────────────────
+    # 4. EDITOR DE ARCHIVOS
+    # ──────────────────────────────────────────────────────────
 
     def add_file_tab(self, filename: str, content: str):
         """Añade un nuevo tab con el contenido del archivo."""
         editor = QTextEdit()
         editor.setFontFamily("Consolas")
         editor.setFontPointSize(10)
-        editor.setTabStopDistance(4 * 10)
+        editor.setTabStopDistance(4 * 20)
         editor.setPlainText(content)
         editor.textChanged.connect(lambda: self.on_file_edited(filename, editor.toPlainText()))
 
@@ -413,7 +555,6 @@ class ProjectGeneratorDialog(QDialog):
         """Marca el archivo como editado."""
         self.edited_files[filename] = content
 
-        # Actualizar título del tab para indicar cambios
         idx = self.file_tabs.indexOf(self.file_tabs.currentWidget())
         if idx >= 0:
             current_name = self.file_tabs.tabText(idx)
@@ -431,7 +572,6 @@ class ProjectGeneratorDialog(QDialog):
         )
         if reply == QMessageBox.Yes:
             self.file_tabs.removeTab(index)
-            # Si no quedan tabs, deshabilitar botones
             if self.file_tabs.count() == 0:
                 self.save_btn.setEnabled(False)
                 self.save_compile_btn.setEnabled(False)
@@ -458,7 +598,7 @@ class ProjectGeneratorDialog(QDialog):
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(content)
                 saved += 1
-                # Quitar el asterisco del tab
+                # Quitar asterisco
                 for i in range(self.file_tabs.count()):
                     if self.file_tabs.tabText(i).lstrip("*") == filename:
                         self.file_tabs.setTabText(i, filename)
@@ -468,57 +608,136 @@ class ProjectGeneratorDialog(QDialog):
 
         QMessageBox.information(self, "Guardado", f"Se guardaron {saved} archivos.")
         log.info(f"[ProjectGeneratorDialog] Archivos guardados: {saved}")
+        self._save_state()
+
+    # ──────────────────────────────────────────────────────────
+    # 5. COMPILACIÓN
+    # ──────────────────────────────────────────────────────────
+
+    def save_and_compile(self):
+        """Guarda archivos y compila el proyecto según el tipo detectado."""
+        # Guardar archivos
+        self.save_files()
+
+        # Obtener información
+        project_type = self.project_info.get('project_type', 'application')
+        language = self.project_info.get('main_language', '')
+        binary_target = self.project_info.get('binary_target')
+        main_file = self.project_info.get('main_file')
+
+        if isinstance(main_file, list) and main_file:
+            main_file = main_file[0]
+
+        # ── 1. DETECTAR COMANDO DE BUILD ──
+        build_command = self._detect_build_command(project_type, language, binary_target, main_file)
+
+        # Si no se detectó, usar el que vino de IA
+        if not build_command and self.build_command:
+            build_command = self.build_command
+
+        if build_command:
+            cmd_str = ' '.join(build_command.get('cmd', []))
+            reply = QMessageBox.question(
+                self,
+                "Confirmar compilación",
+                f"Se ejecutará:\n{cmd_str}\n\n"
+                f"Descripción: {build_command.get('description', 'Comando de build')}\n\n"
+                "¿Usar este comando?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            )
+
+            if reply == QMessageBox.Cancel:
+                return
+
+            if reply == QMessageBox.No:
+                # Editar comando
+                cmd_str = self._edit_command_dialog(cmd_str)
+                if cmd_str:
+                    build_command['cmd'] = cmd_str.split()
+                else:
+                    return
+
+            # Ejecutar compilación
+            result = self._run_build_command(build_command)
+
+        else:
+            # Fallback: CompilationEngine
+            output_type = self._detect_output_type(project_type, language, binary_target, main_file)
+            result = self._compile_with_engine(main_file, output_type)
+
+        # ── 4. Mostrar resultado ──
+        if result.get('success'):
+            QMessageBox.information(
+                self,
+                "Compilación exitosa",
+                f"✅ Archivo generado:\n{result.get('output_file', 'No especificado')}"
+            )
+            log.info(f"[ProjectGeneratorDialog] Compilación exitosa: {result.get('output_file')}")
+            self._show_post_compile_options(result)
+        else:
+            QMessageBox.critical(
+                self,
+                "Error de compilación",
+                f"❌ Error:\n{result.get('stderr', 'Error desconocido')}"
+            )
+            log.error(f"[ProjectGeneratorDialog] Compilación falló: {result.get('stderr')}")
+
+    def _edit_command_dialog(self, current_cmd: str) -> str:
+        """Abre un diálogo para editar el comando."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Editar comando de compilación")
+        dialog.resize(600, 100)
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("Modifica el comando según necesites:"))
+
+        cmd_edit = QLineEdit(current_cmd)
+        cmd_edit.setFont(QFont("Consolas", 10))
+        layout.addWidget(cmd_edit)
+
+        btn_layout = QHBoxLayout()
+        ok_btn = QPushButton("Aceptar")
+        cancel_btn = QPushButton("Cancelar")
+        ok_btn.clicked.connect(dialog.accept)
+        cancel_btn.clicked.connect(dialog.reject)
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        if dialog.exec_():
+            return cmd_edit.text()
+        return ""
 
     def _detect_output_type(self, project_type: str, language: str, binary_target: str, main_file: str) -> str:
-        """
-        Detecta automáticamente el tipo de salida según el proyecto.
-        """
-        # Si se detectó un target binario específico
+        """Detecta automáticamente el tipo de salida según el proyecto."""
         if binary_target:
             return binary_target
 
-        # Por lenguaje
         if language == 'python':
             if project_type in ['library', 'binary_extension']:
-                # Detectar si es una extensión C/C++
                 if self._has_cpp_files():
                     return 'pyd'
-                # Si es biblioteca pura Python
                 return 'whl'
-            else:
-                return 'exe'  # Si no, ejecutable
-
-        elif language == 'rust':
-            if project_type == 'library':
-                return 'rlib'
             return 'exe'
 
-        elif language == 'java':
-            if project_type == 'library':
-                return 'jar'
-            return 'jar'  # Los proyectos Java generan JAR
+        elif language == 'rust':
+            return 'rlib' if project_type == 'library' else 'exe'
 
-        elif language == 'c' or language == 'cpp':
+        elif language in ['c', 'cpp']:
             if project_type == 'binary_extension':
                 return 'dll' if os.name == 'nt' else 'so'
             return 'exe'
 
         elif language == 'go':
-            if project_type == 'library':
-                return 'go-bin'  # No hay bibliotecas estándar en Go
-            return 'exe'
+            return 'go-bin' if project_type == 'library' else 'exe'
 
         elif language == 'node':
-            if project_type == 'library':
-                return 'nodepkg'
-            return 'nodebin'
+            return 'nodepkg' if project_type == 'library' else 'nodebin'
 
-        # Por defecto
         return 'exe'
 
     def _has_cpp_files(self) -> bool:
         """Verifica si el proyecto tiene archivos C/C++."""
-        # Usar source_files del analizador
         source_files = self.project_info.get('source_files', [])
         for entry in source_files:
             if isinstance(entry, dict):
@@ -531,23 +750,21 @@ class ProjectGeneratorDialog(QDialog):
         return False
 
     def _detect_build_command(self, project_type: str, language: str, binary_target: str, main_file: str) -> Optional[Dict]:
-        """
-        Detecta el comando de build apropiado para el proyecto.
-        """
-        # Obtener config_files del proyecto_info
+        """Detecta el comando de build apropiado para el proyecto."""
         config_files = self.project_info.get('config_files', [])
         project_dir = self.project_dir
 
         # ── Python ──
         if language == 'python':
-            if 'setup.py' in config_files and self._has_cpp_files():
+            config_names = [e.get('name', '') if isinstance(e, dict) else e for e in config_files]
+            if 'setup.py' in config_names and self._has_cpp_files():
                 return {
                     'cmd': ['python', 'setup.py', 'build_ext', '--inplace'],
                     'cwd': project_dir,
                     'timeout': 300,
                     'description': 'Compilando extensión C++ con pybind11'
                 }
-            elif 'pyproject.toml' in config_files:
+            elif 'pyproject.toml' in config_names:
                 if self._has_scikit_build():
                     return {
                         'cmd': ['python', '-m', 'build', '--wheel'],
@@ -562,7 +779,7 @@ class ProjectGeneratorDialog(QDialog):
                         'timeout': 300,
                         'description': 'Compilando con build (pyproject.toml)'
                     }
-            elif 'setup.py' in config_files:
+            elif 'setup.py' in config_names:
                 return {
                     'cmd': ['python', 'setup.py', 'build'],
                     'cwd': project_dir,
@@ -574,23 +791,24 @@ class ProjectGeneratorDialog(QDialog):
                     'cmd': ['python', main_file],
                     'cwd': project_dir,
                     'timeout': 60,
-                    'description': 'Ejecutando script Python'
+                    'description': f'Ejecutando {os.path.basename(main_file)}'
                 }
 
         # ── Rust ──
         elif language == 'rust':
-            if 'Cargo.toml' in config_files:
-                release = '--release' if project_type == 'library' else ''
+            if 'Cargo.toml' in [e.get('name', '') if isinstance(e, dict) else e for e in config_files]:
                 return {
-                    'cmd': ['cargo', 'build'] + ([release] if release else []),
+                    'cmd': ['cargo', 'build'],
                     'cwd': project_dir,
                     'timeout': 600,
-                    'description': f'Compilando Rust con Cargo ({"release" if release else "debug"})'
+                    'description': 'Compilando Rust con Cargo'
                 }
 
         # ── C/C++ ──
         elif language in ('c', 'cpp'):
-            if 'CMakeLists.txt' in config_files:
+            config_names = [e.get('name', '') if isinstance(e, dict) else e for e in config_files]
+
+            if 'CMakeLists.txt' in config_names:
                 build_dir = os.path.join(project_dir, 'build')
                 os.makedirs(build_dir, exist_ok=True)
                 return {
@@ -599,7 +817,7 @@ class ProjectGeneratorDialog(QDialog):
                     'timeout': 600,
                     'description': 'Compilando con CMake'
                 }
-            elif 'Makefile' in config_files:
+            elif 'Makefile' in config_names:
                 return {
                     'cmd': ['make'],
                     'cwd': project_dir,
@@ -619,7 +837,7 @@ class ProjectGeneratorDialog(QDialog):
 
         # ── Go ──
         elif language == 'go':
-            if 'go.mod' in config_files:
+            if 'go.mod' in [e.get('name', '') if isinstance(e, dict) else e for e in config_files]:
                 return {
                     'cmd': ['go', 'build'],
                     'cwd': project_dir,
@@ -636,7 +854,7 @@ class ProjectGeneratorDialog(QDialog):
 
         # ── Java ──
         elif language == 'java':
-            if 'pom.xml' in config_files:
+            if 'pom.xml' in [e.get('name', '') if isinstance(e, dict) else e for e in config_files]:
                 return {
                     'cmd': ['mvn', 'clean', 'compile', 'package'],
                     'cwd': project_dir,
@@ -653,7 +871,7 @@ class ProjectGeneratorDialog(QDialog):
 
         # ── Node.js ──
         elif language == 'node':
-            if 'package.json' in config_files:
+            if 'package.json' in [e.get('name', '') if isinstance(e, dict) else e for e in config_files]:
                 return {
                     'cmd': ['npm', 'start'],
                     'cwd': project_dir,
@@ -686,20 +904,20 @@ class ProjectGeneratorDialog(QDialog):
         return False
 
     def _run_build_command(self, build_info: Dict) -> Dict:
-        """
-        Ejecuta un comando de build y devuelve el resultado.
-        """
+        """Ejecuta un comando de build y devuelve el resultado."""
         import subprocess
 
-        cmd = build_info['cmd']
+        cmd = build_info.get('cmd', [])
         cwd = build_info.get('cwd', self.project_dir)
         timeout = build_info.get('timeout', 300)
 
-        log.info(f"[ProjectGeneratorDialog] {build_info['description']}")
+        if not cmd:
+            return {'success': False, 'stderr': 'No se especificó comando', 'returncode': -1}
+
+        log.info(f"[ProjectGeneratorDialog] {build_info.get('description', 'Ejecutando build')}")
         log.debug(f"[ProjectGeneratorDialog] Comando: {' '.join(cmd)}")
 
         try:
-            # Si es un comando compuesto (con &&)
             if len(cmd) > 1 and '&&' in cmd:
                 cmd_str = ' '.join(cmd)
                 result = subprocess.run(
@@ -719,9 +937,7 @@ class ProjectGeneratorDialog(QDialog):
                     timeout=timeout
                 )
 
-            # Determinar el archivo de salida
             output_file = self._find_output_file(build_info)
-
             return {
                 'success': result.returncode == 0,
                 'stdout': result.stdout,
@@ -748,31 +964,20 @@ class ProjectGeneratorDialog(QDialog):
             }
 
     def _find_output_file(self, build_info: Dict) -> Optional[str]:
-        """
-        Intenta encontrar el archivo de salida generado por la compilación.
-        """
+        """Intenta encontrar el archivo de salida generado."""
         project_dir = self.project_dir
-        output_extensions = {
-            'exe': '.exe',
-            'pyd': '.pyd',
-            'so': '.so',
-            'dll': '.dll',
-            'jar': '.jar',
-            'whl': '.whl',
-            'rlib': '.rlib'
-        }
-
-        # Buscar archivos modificados recientemente en los directorios comunes
         search_dirs = [
             project_dir,
             os.path.join(project_dir, 'dist'),
             os.path.join(project_dir, 'target'),
             os.path.join(project_dir, 'build'),
-            os.path.join(project_dir, 'src')
+            os.path.join(project_dir, 'src'),
+            os.path.join(project_dir, 'release')
         ]
 
         latest_file = None
         latest_time = 0
+        output_exts = list(OUTPUT_TYPE_MAP_ANALIZER.keys())
 
         for search_dir in search_dirs:
             if not os.path.exists(search_dir):
@@ -780,8 +985,7 @@ class ProjectGeneratorDialog(QDialog):
             for root, dirs, files in os.walk(search_dir):
                 for file in files:
                     filepath = os.path.join(root, file)
-                    # Verificar extensiones comunes de archivos de salida
-                    for ext in output_extensions.values():
+                    for ext in output_exts:
                         if file.endswith(ext):
                             mtime = os.path.getmtime(filepath)
                             if mtime > latest_time:
@@ -791,9 +995,7 @@ class ProjectGeneratorDialog(QDialog):
         return latest_file
 
     def _compile_with_engine(self, main_file: str, output_type: str) -> Dict:
-        """
-        Método fallback: compila usando CompilationEngine.
-        """
+        """Método fallback: compila usando CompilationEngine."""
         detector = CompilerDetector()
         tool = detector.get_tool_for_file(main_file)
 
@@ -810,14 +1012,17 @@ class ProjectGeneratorDialog(QDialog):
         output_dir = os.path.join(self.project_dir, 'dist')
         os.makedirs(output_dir, exist_ok=True)
 
-        # Determinar extensión de salida
         ext_map = {
             'exe': '.exe' if os.name == 'nt' else '',
             'pyd': '.pyd' if os.name == 'nt' else '.so',
             'dll': '.dll',
             'so': '.so',
             'jar': '.jar',
-            'whl': '.whl'
+            'whl': '.whl',
+            'rlib': '.rlib',
+            'go-bin': '.go-bin',
+            'nodebin': '.nodebin',
+            'nodepkg': '.nodepkg'
         }
         ext = ext_map.get(output_type, '.bin')
         output_file = os.path.join(output_dir, os.path.splitext(os.path.basename(main_file))[0] + ext)
@@ -836,7 +1041,6 @@ class ProjectGeneratorDialog(QDialog):
     def _show_post_compile_options(self, result: Dict):
         """Muestra opciones adicionales después de la compilación."""
         output_file = result.get('output_file')
-
         if not output_file or not os.path.exists(output_file):
             return
 
@@ -851,51 +1055,33 @@ class ProjectGeneratorDialog(QDialog):
         if reply == QMessageBox.Yes:
             try:
                 import subprocess
-                subprocess.Popen([output_file], shell=True)
+                if os.name == 'nt':
+                    subprocess.Popen([output_file], shell=True)
+                else:
+                    subprocess.Popen([output_file])
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"No se pudo ejecutar el archivo:\n{e}")
 
-    def save_and_compile(self):
-        """Guarda archivos y compila el proyecto según el tipo detectado."""
-        self.save_files()
+    # ──────────────────────────────────────────────────────────
+    # 6. PERSISTENCIA
+    # ──────────────────────────────────────────────────────────
 
-        # ── 1. Obtener información del proyecto ──
-        project_type = self.project_info.get('project_type', 'application')
-        language = self.project_info.get('main_language', '')
-        binary_target = self.project_info.get('binary_target')
-        main_file = self.project_info.get('main_file')  # <-- ya guardado en analyze_project
+    def _save_state(self):
+        """Guarda el estado actual del proyecto."""
+        if not self.project_dir:
+            return
 
-        # Si main_file es una lista, tomar el primero
-        if isinstance(main_file, list) and main_file:
-            main_file = main_file[0]
+        state = {
+            'project_dir': self.project_dir,
+            'summary': self.project_info,
+            'generated_files': self.generated_files,
+            'edited_files': self.edited_files,
+            'build_command': self.build_command,
+            'build_description': self.build_description,
+        }
+        save_project_state(state)
 
-        # ── 2. Detectar automáticamente el tipo de salida ──
-        output_type = self._detect_output_type(project_type, language, binary_target, main_file)
-
-        # ── 3. Detectar el comando de build ──
-        build_command = self._detect_build_command(project_type, language, binary_target, main_file)
-
-        if build_command:
-            result = self._run_build_command(build_command)
-        else:
-            # Fallback con CompilationEngine
-            result = self._compile_with_engine(main_file, output_type)
-
-        # ── 4. Mostrar resultado ──
-        if result['success']:
-            QMessageBox.information(
-                self,
-                "Compilación exitosa",
-                f"✅ Archivo generado:\n{result.get('output_file', 'No especificado')}"
-            )
-            log.info(f"[ProjectGeneratorDialog] Compilación exitosa: {result.get('output_file')}")
-        else:
-            QMessageBox.critical(
-                self,
-                "Error de compilación",
-                f"❌ Error:\n{result.get('stderr', 'Error desconocido')}"
-            )
-            log.error(f"[ProjectGeneratorDialog] Compilación falló: {result.get('stderr')}")
-
-        if result['success']:
-            self._show_post_compile_options(result)
+    def closeEvent(self, event):
+        """Guarda el estado al cerrar."""
+        self._save_state()
+        event.accept()

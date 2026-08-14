@@ -23,8 +23,8 @@ except ImportError:
     except ImportError:
         tomllib = None
 
-from .ai_client import AIClient
-from . import logger
+from ..ai_client import AIClient
+from .. import logger
 
 log = logger.Logger()
 
@@ -186,8 +186,6 @@ class ProjectAnalyzer:
         if use_ai:
             self.ai_client = AIClient(provider=provider, api_key=api_key, model=model)
 
-        log.info(f"[ProjectAnalyzer] project_dir: {project_dir}, use_ai: {use_ai}, provider: {provider}, api_key: {api_key}, model: {model}, max_file_size: {max_file_size}")
-
         # Estructura de análisis
         self.file_entries = []
         self.summary = {
@@ -257,12 +255,16 @@ class ProjectAnalyzer:
         self._generate_suggestions()
 
         # 8. Usar IA si está disponible
-        if self.use_ai and self.ai_client and self.ai_client.client:
+        if self.use_ai and self.ai_client and self.ai_client.is_available():
             self._get_ai_suggestions()
+
+        resumen = self.summary
+        for dicc in resumen["files"]:
+            if dicc.get('content'):
+                dicc.pop('content')
 
         log.info(f"[ProjectAnalyzer] Análisis completado. Tipo: {self.summary['project_type']}, "
                  f"Lenguaje: {self.summary['main_language']}")
-        log.debug(f"[ProjectAnalyzer] Resumen: {json.dumps(self.summary, default=str, indent=2)[:500]}...")
 
         return self.summary
 
@@ -971,93 +973,352 @@ class ProjectAnalyzer:
         self.summary['suggested_config_files'] = suggested_configs
         self.summary['suggested_actions'] = actions
 
+    def _prepare_summary_for_ai(self, include_content: bool = False, max_content_size: int = 2000) -> Dict:
+        """
+        Prepara una copia del summary para enviar a la IA.
+        - Si include_content es True, incluye el contenido de los archivos (limitado).
+        - max_content_size: límite de caracteres por archivo.
+        """
+        import copy
+        summary_copy = copy.deepcopy(self.summary)
+
+        # Convertir sets a listas para JSON
+        summary_copy['dependencies'] = list(summary_copy['dependencies'])
+        summary_copy['imports'] = {k: list(v) for k, v in summary_copy['imports'].items()}
+        summary_copy['exports'] = {k: list(v) for k, v in summary_copy['exports'].items()}
+        summary_copy['languages'] = dict(summary_copy['languages'])
+
+        # Manejar archivos
+        for file_entry in summary_copy.get('files', []):
+            if include_content and file_entry.get('content'):
+                # Limitar tamaño del contenido
+                content = file_entry['content']
+                if len(content) > max_content_size:
+                    file_entry['content'] = content[:max_content_size] + "\n... (truncado)"
+            else:
+                # Eliminar contenido para no sobrecargar
+                file_entry.pop('content', None)
+
+        return summary_copy
     # ──────────────────────────────────────────────────────────
-    # 10. INTEGRACIÓN CON IA
+    # 10. INTEGRACIÓN CON IA (ENRIQUECIDA)
     # ──────────────────────────────────────────────────────────
 
     def _get_ai_suggestions(self):
-        """Usa IA para mejorar la detección y sugerencias."""
-        if not self.ai_client or not self.ai_client.client:
+        """
+        Usa IA para mejorar la detección y sugerencias.
+        Envía TODO el summary a la IA.
+        """
+        if not self.ai_client or not self.ai_client.is_available():
             return
 
-        # Construir resumen para la IA
-        summary_text = f"""
-Proyecto: {self.project_dir}
-Lenguaje principal: {self.summary.get('main_language', 'Desconocido')}
-Tipo detectado: {self.summary.get('project_type', 'Desconocido')}
-Confianza: {self.summary.get('intent_confidence', 0) * 100:.1f}%
-
-Archivos fuente: {len([e for e in self.summary['source_files']])}
-Archivos de configuración: {[e['name'] for e in self.summary['config_files']]}
-
-Dependencias detectadas ({len(self.summary['dependencies'])}):
-{', '.join(list(self.summary['dependencies'])[:15])}
-
-Archivos principales: {[os.path.basename(f) for f in self.summary['main_files']]}
-
-Puntuación de intenciones: {self.summary.get('score_breakdown', {})}
-
-Evidencia recopilada:
-{chr(10).join(['- ' + e for e in self.summary['evidence'][:5]])}
-
-Arquitectura de build sugerida: {self.summary.get('suggested_build_architecture', 'No detectada')}
-"""
+        # Preparar una copia del summary con contenido de archivos limitado
+        summary_for_ai = self._prepare_summary_for_ai(include_content=True, max_content_size=2000)
 
         prompt = f"""
-Analiza el siguiente proyecto de software y responde en formato JSON:
+    Eres un analista de proyectos experto en compilación. Analiza TODOS los datos del siguiente resumen de proyecto y proporciona sugerencias para mejorar la compilación y estructura del proyecto.
 
-{summary_text}
+    DATOS COMPLETOS DEL PROYECTO (en JSON):
+    {json.dumps(summary_for_ai, indent=2, default=str)}
 
-Responde con este formato exacto:
+    Basándote en TODA esta información, responde SOLO con el siguiente JSON:
+    {{
+        "project_type": "tipo_principal",
+        "project_subtype": "subtipo_especifico",
+        "confidence": 0.85,
+        "missing_configs": ["archivo1", "archivo2"],
+        "build_commands": ["comando1", "comando2"],
+        "recommendations": ["recomendación1", "recomendación2"],
+        "binary_target": "pyd|so|dll|exe|jar|whl|ninguno"
+    }}
+    """
+
+        try:
+            kwargs = {}
+            if self.provider == "deepseek":
+                kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+
+            response = self.ai_client.chat(
+                messages=[
+                    {"role": "system", "content": "Eres un analista de proyectos experto en compilación. Responde SOLO con el JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=1000,
+                **kwargs
+            )
+
+            if not response:
+                log.warning("[ProjectAnalyzer] No se recibió respuesta de IA")
+                return
+
+            log.debug(f"[ProjectAnalyzer] Respuesta cruda de IA: {response[:300]}...")
+
+            cleaned = self._extract_json_from_response(response)
+            if not cleaned:
+                log.warning("[ProjectAnalyzer] No se pudo extraer JSON de la respuesta")
+                return
+
+            data = json.loads(cleaned)
+
+            # Guardar sugerencias
+            self.summary['ai_suggestions'] = data
+
+            # Mejorar clasificación si la IA da más confianza
+            if data.get('confidence', 0) > self.summary.get('intent_confidence', 0):
+                self.summary['project_type'] = data.get('project_type', self.summary['project_type'])
+                self.summary['intent_confidence'] = data.get('confidence', self.summary['intent_confidence'])
+
+            # Añadir configuraciones sugeridas
+            for cfg in data.get('missing_configs', []):
+                if cfg not in self.summary['suggested_config_files']:
+                    self.summary['suggested_config_files'].append(cfg)
+
+            if data.get('build_commands'):
+                self.summary['ai_build_commands'] = data.get('build_commands')
+
+            if data.get('recommendations'):
+                self.summary['ai_recommendations'] = data.get('recommendations')
+
+            if data.get('binary_target'):
+                self.summary['binary_target'] = data.get('binary_target')
+
+            log.info(f"[ProjectAnalyzer] Sugerencias de IA aplicadas: {data.get('project_type')} (confianza: {data.get('confidence', 0)})")
+
+        except json.JSONDecodeError as e:
+            log.warning(f"[ProjectAnalyzer] No se pudo parsear JSON de IA: {e}")
+            log.debug(f"[ProjectAnalyzer] Respuesta que falló: {response[:300] if response else 'None'}")
+        except Exception as e:
+            log.error(f"[ProjectAnalyzer] Error en IA: {e}")
+
+    # ──────────────────────────────────────────────────────────
+    # 12. VEREDICTO CON IA (ENRIQUECIDO PARA TINYLLAMA)
+    # ──────────────────────────────────────────────────────────
+
+    def get_ai_veredict(self, custom_instructions: str = "") -> Optional[Dict]:
+        """
+        Obtiene un veredicto final de la IA sobre el proyecto.
+        Enriquecido con información detallada para TinyLlama.
+        """
+        if not self.ai_client or not self.ai_client.is_available():
+            log.warning("[ProjectAnalyzer] IA no disponible para veredicto")
+            return None
+
+        # ── 1. RECOPILAR INFORMACIÓN DETALLADA ──
+        languages = dict(self.summary['languages'])
+        main_lang = self.summary['main_language']
+        project_type = self.summary['project_type']
+        config_files = [e['name'] for e in self.summary['config_files']]
+        deps = list(self.summary['dependencies'])[:10]
+        main_files = [os.path.basename(f) for f in self.summary['main_files']]
+        evidence = self.summary['evidence'][:5]
+        score_breakdown = self.summary.get('score_breakdown', {})
+
+        # Detectar si es extensión Python (pybind11)
+        has_pybind11 = 'pybind11' in self.summary['dependencies']
+        has_cpp = any(lang in ('c', 'cpp') for lang in languages.keys())
+
+        # Detectar archivos de prueba
+        has_tests = any('test' in f['rel_path'].lower() for f in self.summary['source_files'])
+
+        # ── 2. CONSTRUIR PROMPT ENRIQUECIDO ──
+        prompt = f"""Eres un experto en análisis de proyectos. Estos son los datos con los q trabajas datos:
+
+PROYECTO: {self.summary['project_dir']}
+LENGUAJES DETECTADOS: {', '.join(languages.keys()) if languages else 'Desconocido'}
+TIPO ACTUAL: {project_type}
+CONFIANZA ACTUAL: {self.summary.get('intent_confidence', 0):.2f}
+
+DEPENDENCIAS CLAVE:
+{chr(10).join(f'  - {d}' for d in deps) if deps else '  - Ninguna'}
+
+ARCHIVOS DE CONFIGURACIÓN:
+{chr(10).join(f'  - {c}' for c in config_files) if config_files else '  - Ninguno'}
+
+ARCHIVOS PRINCIPALES:
+{chr(10).join(f'  - {f}' for f in main_files) if main_files else '  - Ninguno'}
+
+EVIDENCIA:
+{chr(10).join(f'  - {e}' for e in evidence) if evidence else '  - Ninguna'}
+
+PUNTUACIÓN DE INTENCIONES:
+{chr(10).join(f'  - {k}: {v:.2f}' for k, v in score_breakdown.items()) if score_breakdown else '  - No disponible'}
+
+DATOS ADICIONALES:
+- Tiene pybind11: {'Sí' if has_pybind11 else 'No'}
+- Tiene C/C++: {'Sí' if has_cpp else 'No'}
+- Tiene tests: {'Sí' if has_tests else 'No'}
+
+Rectifica y mejora el análisis. {custom_instructions if custom_instructions else ''}
+
+Da tu veredicto final en este formato exacto solo modifica los valores no las llaves:
 {{
-    "project_type": "tipo_principal",
-    "project_subtype": "subtipo_especifico",
-    "confidence": 0.85,
-    "missing_configs": ["archivo1", "archivo2"],
-    "build_commands": ["comando1", "comando2"],
-    "recommendations": ["recomendación1", "recomendación2"],
-    "binary_target": "pyd|so|dll|exe|jar|whl|ninguno"
+    "project_type": "extension",
+    "main_language": "cpp",
+    "intent_confidence": 0.85,
+    "suggested_config_files": ["CMakeLists.txt", "Makefile"],
+    "suggested_actions": ["Compilar con CMake", "Ejecutar pruebas"]
 }}
+
+SOLO EL JSON, sin explicaciones ni texto adicional.
 """
 
-        response = self.ai_client.chat([
-            {"role": "system", "content": "Eres un experto en análisis de proyectos de software. Siempre respondes en formato JSON válido."},
-            {"role": "user", "content": prompt}
-        ], temperature=0.3, max_tokens=500, extra_body={"thinking": {"type": "enabled"}} if self.provider == "deepseek" else {})
+        try:
+            # Usar temperatura baja para más precisión
+            response = self.ai_client.chat(
+                messages=[
+                    {"role": "system", "content": "Eres un analista de proyectos que vas a dar tu "
+                    "veredicto final segun los datos que se te den para finalizar la compilacion "
+                    "de un proyecto. Responde SOLO con el JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
 
-        if response:
+            if not response:
+                log.warning("[ProjectAnalyzer] No se recibió respuesta de IA")
+                return None
+
+            log.debug(f"[ProjectAnalyzer] Respuesta cruda de IA: {response}")
+
+            # Limpiar y extraer JSON
+            cleaned = self._extract_json_from_response(response)
+            if not cleaned:
+                log.warning("[ProjectAnalyzer] No se pudo extraer JSON de la respuesta")
+                return None
+
+            veredict = json.loads(cleaned)
+
+            # Validar campos mínimos
+            if 'project_type' in veredict:
+                log.info(f"[ProjectAnalyzer] Veredicto obtenido: {veredict.get('project_type')} (confianza: {veredict.get('intent_confidence', 0)})")
+                return veredict
+            else:
+                log.warning("[ProjectAnalyzer] Veredicto incompleto, falta project_type")
+                return None
+
+        except json.JSONDecodeError as e:
+            log.error(f"[ProjectAnalyzer] Error parseando JSON: {e}")
+            log.debug(f"[ProjectAnalyzer] Respuesta que falló: {response[:300] if response else 'None'}")
+            return None
+        except Exception as e:
+            log.error(f"[ProjectAnalyzer] Error obteniendo veredicto: {e}")
+            return None
+
+    def _extract_json_from_response(self, response: str) -> Optional[str]:
+        """
+        Extrae un objeto JSON de una respuesta de IA.
+        Maneja respuestas que incluyen texto adicional.
+        """
+        import re
+
+        if not response:
+            return None
+
+        # 1. Buscar JSON entre llaves (incluyendo anidado)
+        json_pattern = r'\{[^{}]*\}(?:\s*\{[^{}]*\})*'
+        matches = re.findall(json_pattern, response)
+
+        for match in matches:
             try:
-                data = json.loads(response)
-                self.summary['ai_suggestions'] = data
-
-                # Mejorar clasificación si la IA da más confianza
-                if data.get('confidence', 0) > self.summary.get('intent_confidence', 0):
-                    self.summary['project_type'] = data.get('project_type', self.summary['project_type'])
-                    self.summary['intent_confidence'] = data.get('confidence', self.summary['intent_confidence'])
-
-                # Añadir configuraciones sugeridas por IA
-                for cfg in data.get('missing_configs', []):
-                    if cfg not in self.summary['suggested_config_files']:
-                        self.summary['suggested_config_files'].append(cfg)
-
-                # Añadir comandos de build sugeridos por IA
-                if data.get('build_commands'):
-                    self.summary['ai_build_commands'] = data.get('build_commands')
-
-                # Guardar recomendaciones
-                if data.get('recommendations'):
-                    self.summary['ai_recommendations'] = data.get('recommendations')
-
+                json.loads(match)
+                return match
             except json.JSONDecodeError:
-                log.warning("[ProjectAnalyzer] No se pudo parsear respuesta de IA")
+                continue
 
-    # ──────────────────────────────────────────────────────────
-    # 11. OBTENER RESUMEN LEGIBLE
-    # ──────────────────────────────────────────────────────────
+        # 2. Buscar JSON entre ```json y ```
+        json_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+        if json_block:
+            try:
+                content = json_block.group(1).strip()
+                json.loads(content)
+                return content
+            except json.JSONDecodeError:
+                pass
+
+        # 3. Buscar JSON entre ``` y ```
+        code_block = re.search(r'```\s*([\s\S]*?)\s*```', response)
+        if code_block:
+            try:
+                content = code_block.group(1).strip()
+                json.loads(content)
+                return content
+            except json.JSONDecodeError:
+                pass
+
+        # 4. Buscar cualquier cosa que parezca un objeto JSON con balance de llaves
+        brace_count = 0
+        start = -1
+        for i, char in enumerate(response):
+            if char == '{':
+                if brace_count == 0:
+                    start = i
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0 and start != -1:
+                    candidate = response[start:i+1]
+                    try:
+                        json.loads(candidate)
+                        return candidate
+                    except json.JSONDecodeError:
+                        continue
+
+        # 5. Si no se encuentra JSON, buscar palabras clave y construir uno
+        if 'project_type' in response.lower():
+            log.warning("[ProjectAnalyzer] No se encontró JSON, construyendo desde la respuesta...")
+            return self._build_json_from_text(response)
+
+        return None
+
+    def _build_json_from_text(self, text: str) -> Optional[str]:
+        """
+        Intenta construir un JSON a partir de texto cuando TinyLlama no devuelve JSON puro.
+        """
+        import re
+
+        result = {}
+
+        # Buscar patrones comunes
+        patterns = {
+            'project_type': r'project_type["\s:]+([a-zA-Z_]+)',
+            'main_language': r'main_language["\s:]+([a-zA-Z_]+)',
+            'intent_confidence': r'intent_confidence["\s:]+([0-9.]+)',
+        }
+
+        for key, pattern in patterns.items():
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                value = match.group(1)
+                if key == 'intent_confidence':
+                    try:
+                        result[key] = float(value)
+                    except:
+                        result[key] = 0.5
+                else:
+                    result[key] = value
+
+        # Si no se encontró project_type, usar el que ya tenemos
+        if 'project_type' not in result:
+            result['project_type'] = self.summary.get('project_type', 'unknown')
+
+        if 'main_language' not in result:
+            result['main_language'] = self.summary.get('main_language', 'unknown')
+
+        if 'intent_confidence' not in result:
+            result['intent_confidence'] = self.summary.get('intent_confidence', 0.5)
+
+        # Añadir campos adicionales por defecto
+        result['suggested_config_files'] = self.summary.get('suggested_config_files', [])
+        result['suggested_actions'] = self.summary.get('suggested_actions', [])
+
+        return json.dumps(result, indent=2)
 
     def get_summary(self) -> str:
         """Devuelve un resumen legible del análisis."""
         result = self.summary
+        evidence = result.get('evidence', [])[:5]
         lines = [
             "=" * 70,
             f"📁 Proyecto: {result.get('project_dir')}",
@@ -1069,6 +1330,7 @@ Responde con este formato exacto:
             f"⚙️ Archivos de configuración: {len(result.get('config_files', []))}",
             f"📋 Archivos principales: {', '.join([os.path.basename(f) for f in result.get('main_files', [])[:3]])}",
             f"🔧 Arquitectura de build: {result.get('suggested_build_architecture', 'No detectada')}",
+            f"🔍 **Evidencia:**\n {chr(10).join(['  • ' + e for e in evidence])}",
             "",
             "📦 Dependencias detectadas:",
         ]

@@ -2,15 +2,20 @@
 # src/cli.py
 """
 Interfaz de línea de comandos para el Compilador/Empaquetador Profesional.
+Soporta análisis de proyectos, generación de archivos de configuración y mejora con IA.
 """
 
 import argparse
 import sys
 import os
+import json
 from .compiler_detector import CompilerDetector
 from .compilation_engine import CompilationEngine
+from .proyect_editor.project_analyzer import ProjectAnalyzer
+from .proyect_editor.project_generator import ProjectGenerator
 from .output_types import OUTPUT_TYPE_MAP
 from . import logger
+from .config_manager import load_config, save_config
 
 log = logger.Logger()
 
@@ -24,6 +29,33 @@ def main():
 
     # ── list-tools ──
     subparsers.add_parser('list-tools', help='Lista las herramientas detectadas en el sistema')
+
+    # ── analyze ──
+    parser_analyze = subparsers.add_parser('analyze', help='Analiza un proyecto y muestra un resumen')
+    parser_analyze.add_argument('directory', help='Directorio del proyecto a analizar')
+    parser_analyze.add_argument('--ai', action='store_true', help='Usar IA para mejorar el análisis')
+    parser_analyze.add_argument('--provider', default='plataformia', help='Proveedor de IA (plataformia, deepseek, openai, groq, tinyllama)')
+    parser_analyze.add_argument('--model', help='Modelo de IA a usar')
+    parser_analyze.add_argument('--api-key', help='API Key para el proveedor de IA')
+    parser_analyze.add_argument('--output', '-o', help='Guardar el análisis en un archivo JSON')
+
+    # ── generate ──
+    parser_generate = subparsers.add_parser('generate', help='Genera archivos de configuración para un proyecto')
+    parser_generate.add_argument('directory', help='Directorio del proyecto')
+    parser_generate.add_argument('--ai', action='store_true', help='Usar IA para generar archivos')
+    parser_generate.add_argument('--provider', default='plataformia', help='Proveedor de IA')
+    parser_generate.add_argument('--model', help='Modelo de IA')
+    parser_generate.add_argument('--api-key', help='API Key para el proveedor')
+    parser_generate.add_argument('--prompt', help='Prompt personalizado para la IA')
+
+    # ── enhance ──
+    parser_enhance = subparsers.add_parser('enhance', help='Mejora archivos de configuración con IA')
+    parser_enhance.add_argument('directory', help='Directorio del proyecto')
+    parser_enhance.add_argument('--ai', action='store_true', help='Usar IA para mejorar archivos')
+    parser_enhance.add_argument('--provider', default='plataformia', help='Proveedor de IA')
+    parser_enhance.add_argument('--model', help='Modelo de IA')
+    parser_enhance.add_argument('--api-key', help='API Key para el proveedor')
+    parser_enhance.add_argument('--prompt', help='Prompt personalizado para la IA')
 
     # ── compile ──
     parser_compile = subparsers.add_parser('compile', help='Compila un archivo fuente')
@@ -47,11 +79,21 @@ def main():
 
     if args.command == 'list-tools':
         list_tools()
+    elif args.command == 'analyze':
+        analyze_project(args)
+    elif args.command == 'generate':
+        generate_files(args)
+    elif args.command == 'enhance':
+        enhance_files(args)
     elif args.command == 'compile':
         compile_file(args)
     elif args.command == 'package':
         package_file(args)
 
+
+# ──────────────────────────────────────────────────────────
+# COMANDOS
+# ──────────────────────────────────────────────────────────
 
 def list_tools():
     """Muestra todas las herramientas detectadas."""
@@ -68,6 +110,179 @@ def list_tools():
         type_ = tool.get('type', '')
         exts = ', '.join(tool.get('extensions', []))
         print(f"{name:<20} {version:<25} {type_:<12} {exts}")
+
+
+def analyze_project(args):
+    """Analiza un proyecto y muestra un resumen."""
+    directory = args.directory
+    if not os.path.isdir(directory):
+        print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Analizando proyecto en: {directory}")
+
+    analyzer = ProjectAnalyzer(
+        project_dir=directory,
+        use_ai=args.ai,
+        provider=args.provider,
+        api_key=args.api_key,
+        model=args.model
+    )
+
+    summary = analyzer.analyze()
+
+    # Mostrar resumen
+    print(analyzer.get_summary())
+
+    # Guardar en JSON si se solicita
+    if args.output:
+        try:
+            with open(args.output, 'w', encoding='utf-8') as f:
+                json.dump(summary, f, indent=2, default=str)
+            print(f"\n✅ Análisis guardado en: {args.output}")
+        except Exception as e:
+            print(f"Error guardando el análisis: {e}", file=sys.stderr)
+
+
+def generate_files(args):
+    """Genera archivos de configuración para un proyecto."""
+    directory = args.directory
+    if not os.path.isdir(directory):
+        print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Generando archivos para: {directory}")
+
+    # Primero analizar el proyecto
+    analyzer = ProjectAnalyzer(
+        project_dir=directory,
+        use_ai=args.ai,
+        provider=args.provider,
+        api_key=args.api_key,
+        model=args.model
+    )
+    project_info = analyzer.analyze()
+
+    # Generar archivos
+    generator = ProjectGenerator(
+        use_ai=args.ai,
+        provider=args.provider,
+        api_key=args.api_key,
+        model=args.model
+    )
+
+    files = generator.generate_config_files(project_info, args.prompt or "")
+
+    if not files:
+        print("No se generaron archivos.")
+        sys.exit(1)
+
+    # Mostrar archivos generados y preguntar si guardar
+    print(f"\n📁 Archivos generados ({len(files)}):")
+    for name in files.keys():
+        print(f"  - {name}")
+
+    # Guardar automáticamente en el directorio del proyecto
+    saved = 0
+    for filename, content in files.items():
+        filepath = os.path.join(directory, filename)
+        try:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            saved += 1
+            print(f"✅ Guardado: {filepath}")
+        except Exception as e:
+            print(f"❌ Error guardando {filename}: {e}", file=sys.stderr)
+
+    print(f"\n✅ {saved} archivos guardados en: {directory}")
+
+
+def enhance_files(args):
+    """Mejora archivos de configuración con IA."""
+    directory = args.directory
+    if not os.path.isdir(directory):
+        print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
+        sys.exit(1)
+
+    if not args.ai:
+        print("Error: El comando 'enhance' requiere la bandera --ai", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Mejorando archivos para: {directory}")
+
+    # Analizar proyecto
+    analyzer = ProjectAnalyzer(
+        project_dir=directory,
+        use_ai=args.ai,
+        provider=args.provider,
+        api_key=args.api_key,
+        model=args.model
+    )
+    project_info = analyzer.analyze()
+
+    # Leer archivos de configuración existentes
+    existing_files = {}
+    config_files = project_info.get('config_files', [])
+    for entry in config_files:
+        if isinstance(entry, dict):
+            name = entry.get('name')
+            path = entry.get('path')
+        else:
+            name = os.path.basename(entry)
+            path = entry
+        if path and os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    existing_files[name] = f.read()
+            except Exception:
+                pass
+
+    if not existing_files:
+        print("No se encontraron archivos de configuración para mejorar.", file=sys.stderr)
+        sys.exit(1)
+
+    # Mejorar archivos
+    generator = ProjectGenerator(
+        use_ai=args.ai,
+        provider=args.provider,
+        api_key=args.api_key,
+        model=args.model
+    )
+
+    result = generator.enhance_files_with_ai(project_info, existing_files, args.prompt or "")
+
+    files = result.get('files', {})
+    build_cmd = result.get('build_command')
+
+    if not files:
+        print("No se mejoraron archivos.")
+        sys.exit(1)
+
+    # Mostrar archivos mejorados
+    print(f"\n📁 Archivos mejorados ({len(files)}):")
+    for name in files.keys():
+        print(f"  - {name}")
+
+    if build_cmd:
+        print(f"\n🔧 Comando de build sugerido:")
+        print(f"  {build_cmd.get('description', '')}")
+        print(f"  Comando: {' '.join(build_cmd.get('cmd', []))}")
+
+    # Guardar automáticamente
+    saved = 0
+    for filename, content in files.items():
+        filepath = os.path.join(directory, filename)
+        try:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            saved += 1
+            print(f"✅ Guardado: {filepath}")
+        except Exception as e:
+            print(f"❌ Error guardando {filename}: {e}", file=sys.stderr)
+
+    print(f"\n✅ {saved} archivos mejorados guardados en: {directory}")
 
 
 def compile_file(args):
@@ -97,17 +312,18 @@ def compile_file(args):
     # 2. Preparar argumentos
     extra_args = args.args.split() if args.args else []
     output_type = args.type
-    # Validar output_type (si es un nombre de display, convertirlo a código)
-    if output_type in OUTPUT_TYPE_MAP.values():
-        pass  # ya es código
-    else:
-        # Buscar el código correspondiente
+
+    # Validar output_type
+    if output_type not in OUTPUT_TYPE_MAP.values():
+        # Si no es un código, buscar por display_name
+        found = False
         for display, code in OUTPUT_TYPE_MAP.items():
-            if display.lower() == output_type.lower():
+            if display.lower() == output_type:
                 output_type = code
+                found = True
                 break
-        else:
-            print(f"Advertencia: Tipo de salida '{output_type}' no reconocido. Usando 'exe'.", file=sys.stderr)
+        if not found:
+            print(f"Advertencia: Tipo de salida '{args.type}' no reconocido. Usando 'exe'.", file=sys.stderr)
             output_type = 'exe'
 
     # 3. Compilar

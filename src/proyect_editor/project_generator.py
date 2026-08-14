@@ -4,11 +4,14 @@ Módulo para generar archivos de configuración usando plantillas o IA.
 """
 
 import os
-from typing import Dict, List, Optional, Any
+import json
+import re
+import copy
+from typing import Dict, List, Optional, Any, Counter
 
 from .template_loader import TemplateLoader
-from .ai_client import AIClient
-from . import logger
+from ..ai_client import AIClient
+from .. import logger
 
 log = logger.Logger()
 
@@ -45,22 +48,11 @@ class ProjectGenerator:
         # Inicializar AIClient si se usa IA
         self.ai_client = None
         if self.use_ai and self.api_key:
-            self.ai_client = AIClient(
-                provider=self.provider,
-                api_key=self.api_key,
-                model=self.model,
-                base_url=self.api_base
-            )
+            self.ai_client = AIClient(provider=provider, api_key=api_key, model=model)
             log.info(f"[ProjectGenerator] IA inicializada: {provider} - {self.model}")
 
         # TemplateLoader siempre disponible
-        self.template_loader = TemplateLoader(
-            use_ai=self.use_ai, 
-            provider=self.provider, 
-            api_key=self.api_key, 
-            api_base=self.api_base,
-            model=self.model
-            )
+        self.template_loader = TemplateLoader()
 
     # ──────────────────────────────────────────────────────────
     # 1. GENERACIÓN DE ARCHIVOS (PUNTO DE ENTRADA)
@@ -86,14 +78,16 @@ class ProjectGenerator:
         dependencies = list(project_info.get('dependencies', set()))
 
         # Usar IA si está disponible y hay prompt personalizado
-        if self.use_ai and self.ai_client and self.ai_client.client:
+        if self.use_ai and self.ai_client:
             log.info(f"[ProjectGenerator] Generando con IA para {language} (proyecto: {project_name})")
 
             # Construir contexto para la IA
             context = self._build_ai_context(project_info, language, project_name, project_type, binary_target, files, dependencies)
 
             # Generar con IA
-            return self._generate_with_ai(context, language, custom_prompt)
+            result = self._generate_with_ai(context, language, custom_prompt)
+            log.debug(f"[ProjectGenerator] Resultado de la IA: {result}")
+            return result
 
         # Si no hay IA, usar plantillas
         log.info(f"[ProjectGenerator] Generando con plantillas para {language}")
@@ -141,41 +135,53 @@ class ProjectGenerator:
 {template_examples if template_examples else '  - (No hay ejemplos disponibles)'}
 """
 
-    def _generate_with_ai(self, context: str, language: str, custom_prompt: str= None) -> Dict[str, str]:
-        """Genera archivos usando el AIClient."""
+    def _generate_with_ai(self, context: str, language: str, custom_prompt: str = None, project_info: Dict = None) -> Dict[str, str]:
+        """Genera archivos usando el AIClient. Recibe TODO el project_info."""
         if not self.ai_client:
             log.warning("[ProjectGenerator] AIClient no disponible, usando plantillas")
             return {}
 
-        # Construir prompt completo
+        # Preparar el resumen completo para la IA
+        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=False) if project_info else {}
+
+        # Construir prompt con datos completos
         prompt = f"""
-Eres un experto en desarrollo de software especializado en generar archivos de configuración.
+    Eres un experto en desarrollo de software. Genera archivos de configuración basándote en TODOS los datos del proyecto.
 
-**Contexto del proyecto:**
-{context}
+    DATOS COMPLETOS DEL PROYECTO (en JSON):
+    {json.dumps(summary_for_ai, indent=2, default=str) if summary_for_ai else 'No hay datos'}
 
-**Instrucciones adicionales:**
-{custom_prompt if custom_prompt else 'Genera los archivos de configuración típicos para este proyecto.'}
+    INSTRUCCIONES ADICIONALES:
+    Genera los archivos de configuración típicos para este proyecto. {custom_prompt if custom_prompt else ''}
 
-**Requerimientos:**
-1. Genera los archivos de configuración más relevantes para este proyecto.
-2. Sigue las mejores prácticas para {language}.
-3. Incluye comentarios explicativos cuando sea necesario.
+    REQUERIMIENTOS:
+    1. Genera los archivos más relevantes para este proyecto específico.
+    2. Sigue las mejores prácticas para {language}.
+    3. Incluye comentarios útiles.
 
-**Formato de respuesta:** Cada archivo debe estar delimitado por:
---- NOMBRE_ARCHIVO ---
-contenido del archivo
---- FIN ---
-"""
+    FORMATO DE RESPUESTA: Cada archivo debe estar delimitado por:
+    --- NOMBRE_ARCHIVO ---
+    contenido del archivo
+    --- FIN ---
+    """
 
         try:
-            # Usar el AIClient para generar
-            response = self.ai_client.chat([
-                {"role": "system", "content": "Eres un experto en desarrollo de software y generación de archivos de configuración."},
-                {"role": "user", "content": prompt}
-            ], temperature=0.7, max_tokens=500, extra_body={"thinking": {"type": "enabled"}} if self.provider == "deepseek" else {})
+            kwargs = {}
+            if self.provider == "deepseek":
+                kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+
+            response = self.ai_client.chat(
+                messages=[
+                    {"role": "system", "content": "Eres un experto en generación de archivos de configuración. Responde con el formato solicitado."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000,
+                **kwargs
+            )
 
             if response:
+                log.debug(f"[ProjectGenerator] Respuesta IA (primeros 300 chars): {response[:300]}...")
                 return self._parse_ai_response(response, language)
 
             log.warning("[ProjectGenerator] No se recibió respuesta de IA")
@@ -525,3 +531,205 @@ obj/
 .DS_Store
 Thumbs.db
 """)
+    # ──────────────────────────────────────────────────────────
+    # 6. MEJORA DE ARCHIVOS CON IA
+    # ──────────────────────────────────────────────────────────
+    def enhance_files_with_ai(
+        self,
+        project_info: Dict,
+        existing_files: Dict[str, str],
+        custom_prompt: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Mejora archivos de configuración con IA y genera método de compilación.
+        Envía TODO el project_info (summary) a la IA.
+        """
+        if not self.ai_client or not self.ai_client.client:
+            log.warning("[ProjectGenerator] IA no disponible para mejorar archivos")
+            return {'files': existing_files, 'build_command': None}
+
+        # Preparar una copia de project_info sin contenido de archivos (ya tenemos existing_files)
+        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=False)
+
+        # Preparar archivos existentes con contenido completo
+        existing_files_str = "\n".join([
+            f"--- {name} ---\n{content[:3000]}\n--- FIN ---"
+            for name, content in list(existing_files.items())[:5]
+        ])
+
+        prompt = f"""
+Eres un experto en desarrollo de software. Revisa TODOS los datos del proyecto y mejora los archivos de configuración.
+
+DATOS COMPLETOS DEL PROYECTO (en JSON):
+{json.dumps(summary_for_ai, indent=2, default=str)}
+
+ARCHIVOS DE CONFIGURACIÓN EXISTENTES (a mejorar/completar):
+{existing_files_str if existing_files_str else 'No hay archivos existentes.'}
+
+INSTRUCCIONES ADICIONALES:
+{custom_prompt if custom_prompt else 'Completa y mejora los archivos de configuración según las mejores prácticas.'}
+
+REQUERIMIENTOS:
+1. Mejora los archivos existentes con comentarios y estructura adecuada.
+2. Si falta algún archivo importante, créalo.
+3. Asegúrate de que los archivos sean funcionales para este proyecto.
+
+RESPONDE EN FORMATO JSON:
+{{
+    "files": {{
+        "nombre_archivo": "contenido completo",
+        "otro_archivo": "contenido completo"
+    }},
+    "build_command": {{
+        "cmd": ["comando", "arg1", "arg2"],
+        "cwd": "directorio_opcional",
+        "timeout": 300,
+        "description": "Descripción del comando de build"
+    }}
+}}
+"""
+
+        try:
+            kwargs = {}
+            if self.provider == "deepseek":
+                kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+
+            response = self.ai_client.chat(
+                messages=[
+                    {"role": "system", "content": "Eres un experto en desarrollo de software. Responde SOLO en formato JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
+                max_tokens=5000,  # Aumentado para respuesta completa
+                **kwargs
+            )
+
+            if not response:
+                log.warning("[ProjectGenerator] No se recibió respuesta de IA")
+                return {'files': existing_files, 'build_command': None}
+
+            log.debug(f"[ProjectGenerator] Respuesta IA: {response}")
+
+            # Extraer JSON de la respuesta
+            cleaned = self._extract_json_from_response(response)
+            if not cleaned:
+                log.warning("[ProjectGenerator] No se pudo extraer JSON de la respuesta")
+                log.debug(f"[ProjectGenerator] Respuesta completa: {response}")
+                return {'files': existing_files, 'build_command': None}
+
+            result = json.loads(cleaned)
+            return {
+                'files': result.get('files', existing_files),
+                'build_command': result.get('build_command'),
+                'build_description': result.get('build_command', {}).get('description', 'Comando generado por IA')
+            }
+
+        except json.JSONDecodeError as e:
+            log.error(f"[ProjectGenerator] Error parseando JSON: {e}")
+            log.debug(f"[ProjectGenerator] Respuesta que falló: {response[:500] if response else 'None'}")
+            return {'files': existing_files, 'build_command': None}
+        except Exception as e:
+            log.error(f"[ProjectGenerator] Error mejorando archivos con IA: {e}")
+            return {'files': existing_files, 'build_command': None}
+
+    def _extract_json_from_response(self, response: str) -> Optional[str]:
+        """
+        Extrae un objeto JSON de una respuesta de IA.
+        Maneja respuestas en bloque ```json``` o JSON directo.
+        """
+        import re
+        import json
+
+        if not response:
+            return None
+
+        # 1. Limpiar espacios y saltos de línea
+        response = response.strip()
+
+        # 2. Intentar parsear directamente (si es JSON puro)
+        try:
+            json.loads(response)
+            return response
+        except json.JSONDecodeError:
+            pass
+
+        # 3. Buscar JSON entre ```json y ```
+        json_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+        if json_block:
+            try:
+                content = json_block.group(1).strip()
+                json.loads(content)
+                return content
+            except json.JSONDecodeError:
+                pass
+
+        # 4. Buscar JSON entre ``` y ```
+        code_block = re.search(r'```\s*([\s\S]*?)\s*```', response)
+        if code_block:
+            try:
+                content = code_block.group(1).strip()
+                json.loads(content)
+                return content
+            except json.JSONDecodeError:
+                pass
+
+        # 5. Buscar cualquier objeto JSON con balance de llaves
+        brace_count = 0
+        start = -1
+        in_string = False
+        escape = False
+
+        for i, char in enumerate(response):
+            if char == '"' and not escape:
+                in_string = not in_string
+            elif char == '\\' and not escape:
+                escape = True
+                continue
+
+            if not in_string:
+                if char == '{':
+                    if brace_count == 0:
+                        start = i
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0 and start != -1:
+                        candidate = response[start:i+1]
+                        try:
+                            json.loads(candidate)
+                            return candidate
+                        except json.JSONDecodeError:
+                            continue
+
+            escape = False
+
+        # 6. Si no se encuentra JSON, log y return None
+        log.debug(f"[ProjectGenerator] No se pudo extraer JSON de la respuesta: {response}")
+        return None
+
+    def _prepare_summary_for_ai(self, project_info: Dict, include_content: bool = False, max_content_size: int = 2000) -> Dict:
+        """
+        Prepara una copia de project_info para enviar a la IA.
+        """
+        summary_copy = copy.deepcopy(project_info)
+
+        # Convertir sets a listas
+        if 'dependencies' in summary_copy:
+            summary_copy['dependencies'] = list(summary_copy['dependencies'])
+        if 'imports' in summary_copy:
+            summary_copy['imports'] = {k: list(v) for k, v in summary_copy['imports'].items()}
+        if 'exports' in summary_copy:
+            summary_copy['exports'] = {k: list(v) for k, v in summary_copy['exports'].items()}
+        if 'languages' in summary_copy and isinstance(summary_copy['languages'], Counter):
+            summary_copy['languages'] = dict(summary_copy['languages'])
+
+        # Manejar archivos
+        for file_entry in summary_copy.get('files', []):
+            if include_content and file_entry.get('content'):
+                content = file_entry['content']
+                if len(content) > max_content_size:
+                    file_entry['content'] = content[:max_content_size] + "\n... (truncado)"
+            else:
+                file_entry.pop('content', None)
+
+        return summary_copy

@@ -35,7 +35,7 @@ class RustStrategy(CompilerStrategy):
             return cmd, cwd, post_actions
         else:
             out = output_path or os.path.splitext(file_path)[0] + ('.exe' if os.name == 'nt' else '')
-            cmd = ['rustc', file_path, '-o', out]
+            cmd = ['rustc', '-o', file_path, out]
             if extra_args:
                 cmd.extend(extra_args)
             return cmd, None, post_actions
