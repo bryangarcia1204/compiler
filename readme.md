@@ -7,7 +7,7 @@
 [![Python Versions](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/bryangarcia1204/compiler)
 
-> **Aplicación de escritorio y CLI** que detecta automáticamente compiladores, intérpretes y empaquetadores instalados en tu sistema, permitiéndote compilar o empaquetar archivos fuente en múltiples formatos con solo unos clics.
+> **Aplicación de escritorio y CLI** que detecta automáticamente compiladores, intérpretes y empaquetadores instalados en tu sistema, permitiéndote compilar o empaquetar archivos fuente en múltiples formatos con solo unos clics.(Todavía está en desarrollo)
 
 ---
 
