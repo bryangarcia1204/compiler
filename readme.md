@@ -4,7 +4,7 @@
 [![Release](https://github.com/bryangarcia1204/compiler/actions/workflows/release.yml/badge.svg)](https://github.com/bryangarcia1204/compiler/releases)
 [![codecov](https://codecov.io/gh/bryangarcia1204/compiler/branch/main/graph/badge.svg)](https://codecov.io/gh/bryangarcia1204/compiler)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/)
+[![Python Versions](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/bryangarcia1204/compiler)
 
 > **Aplicación de escritorio y CLI** que detecta automáticamente compiladores, intérpretes y empaquetadores instalados en tu sistema, permitiéndote compilar o empaquetar archivos fuente en múltiples formatos con solo unos clics.(Todavía está en desarrollo)
@@ -31,7 +31,7 @@
 
 ## 🖼️ Captura de pantalla
 
-![Compilador Profesional GUI](assets/screenshot.png)
+![Compilador Profesional GUI](assets/screenshot.1.png)
 
 ![Compilador Profesional GUI](assets/screenshot.2.png)
 
@@ -39,9 +39,11 @@
 
 ![Compilador Profesional GUI](assets/screenshot.4.png)
 
-![Compilador Profesional GUI](assets/Captura-de-pantalla-(6).png)
+![Compilador Profesional GUI](assets/screenshot.5.png)
 
-![Compilador Profesional GUI](assets/Captura-de-pantalla-(7).png)
+![Compilador Profesional GUI](assets/screenshot.6.png)
+
+![Compilador Profesional GUI](assets/screenshot.7.png)
 
 ---
 
@@ -87,6 +89,7 @@ O, si estás en el directorio del proyecto:
 ```bash
 python -m src.main
 ```
+![Compilador Profesional GUI](assets/screenshot.1.png)
 ***Pasos básicos***:
 
 1. Selecciona un archivo fuente.
@@ -98,6 +101,7 @@ python -m src.main
 4. Haz clic en **Compilar / Ejecutar** o **Empaquetar**.
 
 ***Generador de Proyectos***:
+![Compilador Profesional GUI](assets/screenshot.3.png)
 
 * Abre el generador desde el botón "Generador de Proyectos" en la GUI.
 
