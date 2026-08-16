@@ -609,13 +609,52 @@ def enhance_files(args):
 
 
 def compile_file(args):
-    """Ejecuta la compilación de un archivo."""
+    """Ejecuta la compilación de un archivo usando .compilador si existe"""
     file_path = args.file
     if not os.path.isfile(file_path):
         print(f"Error: El archivo '{file_path}' no existe.", file=sys.stderr)
         sys.exit(1)
 
     detector = CompilerDetector()
+
+    # ── CARGAR .compilador ──
+    project_dir = os.path.dirname(file_path)
+    from .compilador_config import CompiladorConfig
+    config = CompiladorConfig(project_dir, auto_create=True)
+
+    # ── DETECTAR LENGUAJE ──
+    ext = os.path.splitext(file_path)[1].lower()
+    lang_map = {
+        '.c': 'c', '.cpp': 'cpp', '.py': 'python',
+        '.rs': 'rust', '.go': 'go', '.java': 'java',
+        '.js': 'javascript', '.ts': 'typescript'
+    }
+    language = lang_map.get(ext, 'unknown')
+
+    # ── SI .compilador TIENE COMANDO DEFINIDO PARA EL LENGUAJE ──
+    if language != 'unknown':
+        cmd_from_config = config.get_build_command_for_language(language)
+        if cmd_from_config:
+            print(f"📄 Usando comando desde .compilador: {cmd_from_config}")
+            # Aplicar variables de entorno
+            env = os.environ.copy()
+            env.update(config.get_env_vars())
+            import subprocess
+            result = subprocess.run(
+                cmd_from_config.split(),
+                cwd=project_dir,
+                capture_output=True,
+                text=True,
+                env=env
+            )
+            if result.returncode == 0:
+                print(f"✅ Compilación exitosa.")
+                if result.stdout:
+                    print(result.stdout)
+                sys.exit(0)
+            else:
+                print(f"❌ Compilación falló: {result.stderr}", file=sys.stderr)
+                sys.exit(1)
 
     # 1. Seleccionar herramienta
     if args.tool:
@@ -747,11 +786,43 @@ def package_file(args):
 
 
 def build_project(args):
-    """Compila un proyecto multi-lenguaje."""
+    """Compila un proyecto multi-lenguaje usando .compilador"""
     directory = args.directory
     if not os.path.isdir(directory):
         print(f"Error: '{directory}' no existe.", file=sys.stderr)
         sys.exit(1)
+
+    # ── CARGAR .compilador ──
+    from .compilador_config import CompiladorConfig
+    config = CompiladorConfig(directory, auto_create=True)
+
+    # ── SI .compilador TIENE PASOS DE BUILD ──
+    steps = config.get_build_steps()
+    if steps:
+        print(f"📄 Usando pasos de build desde .compilador")
+        env = os.environ.copy()
+        env.update(config.get_env_vars())
+
+        for step in steps:
+            language = step.get('language')
+            command = step.get('command')
+            if command and command != 'auto':
+                print(f"  🔧 {language}: {command}")
+                import subprocess
+                result = subprocess.run(
+                    command.split(),
+                    cwd=directory,
+                    capture_output=True,
+                    text=True,
+                    env=env
+                )
+                if result.returncode != 0:
+                    print(f"❌ Falló el paso {language}: {result.stderr}", file=sys.stderr)
+                    sys.exit(1)
+                if result.stdout:
+                    print(result.stdout)
+        print("✅ Build completado exitosamente.")
+        sys.exit(0)
 
     # Analizar proyecto
     analyzer = ProjectAnalyzer(directory, use_ai=False)
@@ -760,7 +831,7 @@ def build_project(args):
     # Crear orquestador
     from .build_orchestrator import BuildOrchestrator
     orchestrator = BuildOrchestrator(directory)
-    orchestrator.create_pipeline_from_rules(project_info)
+    orchestrator.create_pipeline(project_info)
 
     print("📦 Construyendo proyecto multi-lenguaje...")
     if orchestrator.run():

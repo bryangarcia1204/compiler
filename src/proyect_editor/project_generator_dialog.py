@@ -388,7 +388,7 @@ class ProjectGeneratorDialog(QMainWindow):
 
         # Crear orquestador
         orchestrator = BuildOrchestrator(self.project_dir)
-        orchestrator.create_pipeline_from_rules(self.project_info)
+        orchestrator.create_pipeline(self.project_info)
 
         self.build_all_btn.setEnabled(False)
         self.info_label.setText("Construyendo todo el proyecto...")
@@ -429,19 +429,27 @@ class ProjectGeneratorDialog(QMainWindow):
             model=model
         )
 
-        # Ejecutar análisis
+        # Ejecutar análisis (esto crea/actualiza .compilador automáticamente)
         self.project_info = self.analyzer.analyze()
+
+        # ── CARGAR/CREAR .compilador ──
+        from ..compilador_config import CompiladorConfig
+        self.compilador = CompiladorConfig(self.project_dir, auto_create=True)
+
+        
 
         # ── SI IA ACTIVA: OBTENER VEREDICTO ──
         if self.ai_checkbox.isChecked() and self.analyzer.ai_client:
             self.info_label.setText("Obteniendo veredicto de IA...")
             veredict = self.analyzer.get_ai_veredict(self.prompt_edit.toPlainText().strip())
             if veredict:
-                # Actualizar project_info con el veredicto
                 self.project_info.update(veredict)
                 self.project_info['ai_veredict'] = veredict
                 self.has_ai_veredict = True
                 self.info_label.setText("✅ Veredicto de IA obtenido y aplicado.")
+                # Actualizar .compilador con el veredicto
+                self.compilador.set('project.type', veredict.get('project_type', self.project_info['project_type']))
+                self.compilador.save()
             else:
                 self.info_label.setText("⚠️ No se pudo obtener veredicto de IA. Usando análisis estándar.")
 
@@ -451,17 +459,18 @@ class ProjectGeneratorDialog(QMainWindow):
         # ── GUARDAR ESTADO ──
         self._save_state()
 
+        # Abrir .compilador en el editor
+        self._open_config_in_editor()
+        
         # ── PREGUNTAR SI GENERAR ARCHIVOS ──
-        suggested = self.project_info.get('suggested_config_files', [])
-        config_names = [e['name'] for e in self.project_info.get('config_files', [])]
-
-        if suggested and not config_names:
+        # Ahora .compilador ya existe, lo usamos para decidir qué hacer
+        targets = self.compilador.get('targets', [])
+        if not targets:
             reply = QMessageBox.question(
                 self,
-                "Archivos sugeridos",
-                f"El proyecto necesita los siguientes archivos:\n"
-                f"{', '.join(suggested)}\n\n"
-                "¿Deseas generarlos ahora?",
+                "Configuración del proyecto",
+                "No hay targets definidos en .compilador.\n"
+                "¿Deseas crear uno por defecto?",
                 QMessageBox.Yes | QMessageBox.No
             )
             if reply == QMessageBox.Yes:
@@ -471,6 +480,22 @@ class ProjectGeneratorDialog(QMainWindow):
         self.generate_btn.setEnabled(True)
         self.enhance_btn.setEnabled(True)
         self.analyze_btn.setEnabled(True)
+
+    def _open_config_in_editor(self):
+        """Abre el archivo .compilador en el editor"""
+        if not hasattr(self, 'compilador') or not self.compilador:
+            return
+
+        config_path = str(self.compilador.config_path)
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.add_file_tab('.compilador', content)
+                self.save_btn.setEnabled(True)
+                self.save_compile_btn.setEnabled(True)
+            except Exception as e:
+                log.error(f"[ProjectGeneratorDialog] Error abriendo .compilador: {e}")
 
     def _update_info_label(self):
         """Actualiza la etiqueta de información."""

@@ -6,6 +6,7 @@ from .go import GoStrategy
 from .java import JavaStrategy
 from .python import PythonStrategy
 from .node import NodeStrategy
+from .dotnet import DotnetStrategy
 
 STRATEGY_CLASSES = [
     GCCStrategy,
@@ -14,7 +15,8 @@ STRATEGY_CLASSES = [
     GoStrategy,
     JavaStrategy,
     PythonStrategy,
-    NodeStrategy
+    NodeStrategy,
+    DotnetStrategy
 ]
 
 # Registrar cada clase con su STRATEGY_CLASS

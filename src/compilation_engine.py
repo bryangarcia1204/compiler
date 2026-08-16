@@ -4,6 +4,7 @@ import os
 import queue
 import platform
 import shutil
+from typing import Optional, Dict
 
 from . import logger
 from .compilers.registry import CompilerRegistry
@@ -23,10 +24,41 @@ else:
 
 class CompilationEngine:
     """Gestiona la ejecución de compiladores, intérpretes y empaquetadores."""
-
-    def __init__(self):
+    def __init__(self, project_dir: Optional[str] = None):
         self.process = None
         self.output_queue = queue.Queue()
+        self.project_dir = project_dir or os.getcwd()
+        self.config = None
+        if project_dir:
+            from .compilador_config import CompiladorConfig
+            self.config = CompiladorConfig(project_dir, auto_create=False)
+            
+    def _get_build_command_from_config(self, language: str) -> Optional[str]:
+        """Obtiene comando de build desde .compilador"""
+        if self.config:
+            return self.config.get_build_command_for_language(language)
+        return None
+
+    def _detect_language_from_file(self, file_path: str) -> Optional[str]:
+        """Detecta lenguaje desde la extensión del archivo"""
+        ext = os.path.splitext(file_path)[1].lower()
+        lang_map = {
+            '.c': 'c',
+            '.cpp': 'cpp',
+            '.cc': 'cpp',
+            '.cxx': 'cpp',
+            '.py': 'python',
+            '.pyw': 'python',
+            '.rs': 'rust',
+            '.go': 'go',
+            '.java': 'java',
+            '.js': 'javascript',
+            '.ts': 'typescript',
+            '.cs': 'csharp',
+            '.csproj': 'dotnet',
+            '.sln': 'dotnet',
+        }
+        return lang_map.get(ext)
 
     def build_package_command(self, file_path, tool, output_path=None, extra_args=None, target = "native"):
         """Construye (cmd, cwd, post_actions) para empaquetar."""
@@ -46,43 +78,51 @@ class CompilationEngine:
         raise ValueError(f"Herramienta de empaquetado no soportada: {tool.get('name')}")
 
     def build_command_for(self, file_path, tool, output_path=None, extra_args=None,
-                          output_type='', release_mode=False, target = 'native'):
+                          output_type='', release_mode=False, target='native'):
         """Construye (cmd, cwd, post_actions) según tool, file_path y output_type."""
         extra_args = extra_args or []
 
-        # ============================================================
-        # 1. PRIMERO: manejar WASM (exactamente como en el original)
-        # ============================================================
+        # ── 1. WASM ──
         if output_type == 'wasm':
             if shutil.which('emcc'):
                 log.debug("[CompilationEngine] Usando emcc para WASM")
                 cmd = ['emcc', file_path, '-o', output_path or (os.path.splitext(file_path)[0] + '.wasm')]
-                return cmd, None, []
+                return cmd, None, [], {}
             if shutil.which('wasm-pack'):
                 log.debug("[CompilationEngine] Usando wasm-pack para WASM")
                 cmd = ['wasm-pack', 'build']
                 cwd = os.path.dirname(file_path) or None
-                return cmd, cwd, []
-            # Si no hay herramientas, caer al fallback
+                return cmd, cwd, [], {}
 
-        # ============================================================
-        # 2. OBTENER NOMBRE DE LA HERRAMIENTA
-        # ============================================================
+        # ── 2. OBTENER NOMBRE DE LA HERRAMIENTA Y LENGUAJE ──
         name = (tool.get('name') or tool.get('command') or '').lower()
+        language = self._detect_language_from_file(file_path)
 
-        # ============================================================
-        # 3. DELEGAR EN ESTRATEGIA ESPECÍFICA SI EXISTE
-        # ============================================================
+        # ── 3. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
+        if self.config and language:
+            config_cmd = self._get_build_command_from_config(language)
+            if config_cmd:
+                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language}: {config_cmd}")
+                # Dividir el comando y reemplazar placeholders
+                cmd_parts = config_cmd.split()
+                cmd_parts = [p.replace('{file}', file_path) for p in cmd_parts]
+                if output_path:
+                    cmd_parts = [p.replace('{output}', output_path) for p in cmd_parts]
+                if target != 'native':
+                    cmd_parts = [p.replace('{target}', target) for p in cmd_parts]
+                # Variables de entorno
+                return cmd_parts, None, []
+
+        # ── 4. DELEGAR EN ESTRATEGIA ──
         strategy = CompilerRegistry.get(name)
         if strategy:
             log.debug(f"[CompilationEngine] Usando estrategia para: {name}")
             return strategy.build_command(file_path, output_path, extra_args, output_type, release_mode, target)
 
-        # ============================================================
-        # 4. FALLBACK GENÉRICO (comportamiento original para compiladores/interpretes)
-        # ============================================================
+        # ── 5. FALLBACK LEGACY ──
         log.debug(f"[CompilationEngine] Sin estrategia para '{name}', usando fallback original")
-        return self._legacy_fallback(file_path, tool, output_path, extra_args, output_type, release_mode)
+        cmd, cwd, post_actions = self._legacy_fallback(file_path, tool, output_path, extra_args, output_type, release_mode)
+        return cmd, cwd, post_actions, {}
 
     def _legacy_fallback(self, file_path, tool, output_path=None, extra_args=None,
                          output_type='exe', release_mode=False):

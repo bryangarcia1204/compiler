@@ -54,6 +54,54 @@ class BuildOrchestrator:
         self.project_dir = project_dir
         self.steps: List[BuildStep] = []
 
+    # src/build_orchestrator.py - Modificar create_pipeline
+
+    def create_pipeline(self, project_info: Dict) -> List[BuildStep]:
+        """
+        Crea un pipeline usando .compilador o las reglas de build.
+        """
+        self.steps = []
+
+        # ── 1. Intentar usar .compilador ──
+        from .compilador_config import CompiladorConfig
+        config = CompiladorConfig(self.project_dir, auto_create=False)
+
+        if config and config.config_path.exists():
+            steps = config.get_build_steps()
+            if steps:
+                log.info("[BuildOrchestrator] Usando pasos de build desde .compilador")
+                for step_info in steps:
+                    language = step_info.get('language')
+                    command = step_info.get('command')
+                    if command and command != 'auto':
+                        step = BuildStep(
+                            name=f"build_{language}",
+                            description=f"Compilando {language}",
+                            command=command.split(),
+                            cwd=self.project_dir
+                        )
+                        self.steps.append(step)
+                    elif command == 'auto':
+                        # Usar detección automática
+                        self._add_auto_step(language)
+                return self.steps
+
+        # ── 2. Si no hay .compilador o no tiene steps, usar reglas ──
+        return self.create_pipeline_from_rules(project_info)
+
+    def _add_auto_step(self, language: str):
+        """Añade un paso automático para un lenguaje usando la estrategia correspondiente"""
+        from .compilers.registry import CompilerRegistry
+        strategy = CompilerRegistry.get(language)
+        if strategy:
+            step = BuildStep(
+                name=f"build_{language}",
+                description=f"Compilando {language} (auto)",
+                command=["echo", f"Compilando {language}..."],
+                cwd=self.project_dir
+            )
+            self.steps.append(step)
+
     def create_pipeline_from_rules(self, project_info: Dict) -> List[BuildStep]:
         """
         Crea un pipeline usando las reglas de build.

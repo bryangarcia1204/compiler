@@ -232,6 +232,8 @@ class ProjectAnalyzer:
         Realiza el análisis completo del proyecto.
         """
         log.info(f"[ProjectAnalyzer] Analizando proyecto en: {self.project_dir}")
+        from ..compilador_config import CompiladorConfig
+        self.compilador = CompiladorConfig(str(self.project_dir), auto_create=True)
 
         # 1. Escanear archivos
         self._scan_files()
@@ -261,6 +263,9 @@ class ProjectAnalyzer:
         if self.use_ai and self.ai_client and self.ai_client.is_available():
             self._get_ai_suggestions()
 
+        # ── 11. ACTUALIZAR .compilador con el análisis ──
+        self._update_compilador()
+
         resumen = self.summary
         for dicc in resumen["files"]:
             if dicc.get('content'):
@@ -270,6 +275,31 @@ class ProjectAnalyzer:
                  f"Lenguaje: {self.summary['main_language']}")
 
         return self.summary
+
+    def _update_compilador(self):
+        """Actualiza el archivo .compilador con los datos del análisis"""
+        if not hasattr(self, 'compilador'):
+            return
+
+        # Actualizar con los datos del análisis
+        self.compilador.set('languages', list(self.summary['languages'].keys()))
+        self.compilador.set('dependencies', list(self.summary['dependencies']))
+        self.compilador.set('project.type', self.summary['project_type'])
+        self.compilador.set('project.name', self.summary.get('project_name', self.project_dir.name))
+
+        # Si no hay targets definidos, crear uno por defecto
+        if not self.compilador.get('targets'):
+            self.compilador.set('targets', [
+                {
+                    "name": "default",
+                    "description": "Compilación por defecto",
+                    "steps": [
+                        {"language": lang, "command": "auto"} for lang in self.summary['languages'].keys()
+                    ]
+                }
+            ])
+
+        self.compilador.save()
 
 # ──────────────────────────────────────────────────────────────
 # 3. ESCANEO DE ARCHIVOS (VERSIÓN CORREGIDA)

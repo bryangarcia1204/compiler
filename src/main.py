@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
 
         self.setStyleSheet(STYLE)
 
-        self.compilation_engine = CompilationEngine()
+        
         self.available_tools = []          # Se llenará después de la detección
         self.current_tools = []
         self.current_file = None
@@ -237,7 +237,13 @@ class MainWindow(QMainWindow):
         self.output_type_map = OUTPUT_TYPE_MAP
         self.worker = None
         self.config = load_config()
+        self.compilation_engine = CompilationEngine(self.config.get('last_file'))
         self.detecting_tools = False   # Para evitar detecciones concurrentes
+        self.compilador_config = None
+        self._load_compilador_for_project()
+
+        # Cargar plugins del marketplace
+        self._load_market_plugins()
 
         self.init_ui()
 
@@ -247,8 +253,8 @@ class MainWindow(QMainWindow):
         # Iniciar detección de herramientas en segundo plano
         QTimer.singleShot(200, self.start_tool_detection)
 
-        # Cargar plugins del marketplace
-        self._load_market_plugins()
+        
+        
 
     def _load_market_plugins(self):
         """Carga los plugins instalados en el marketplace al iniciar."""
@@ -270,6 +276,33 @@ class MainWindow(QMainWindow):
                 log.info(f"[MainWindow] {count} plugins cargados del marketplace")
         except Exception as e:
             log.debug(f"[MainWindow] No se pudieron cargar plugins: {e}")
+
+    def _load_compilador_for_project(self):
+        """Carga .compilador del proyecto actual"""
+        try:
+            from .compilador_config import CompiladorConfig
+            # Buscar .compilador en el directorio actual o en el directorio del archivo
+            search_dirs = [os.getcwd()]
+            if self.current_file:
+                search_dirs.insert(0, os.path.dirname(self.current_file))
+
+            for directory in search_dirs:
+                config = CompiladorConfig(directory, auto_create=False)
+                if config and config.config_path.exists():
+                    self.compilador_config = config
+                    # Iniciar vigilancia
+                    config.watch(self._on_config_changed)
+                    log.info(f"[MainWindow] .compilador cargado desde {directory}")
+                    return
+        except Exception as e:
+            log.debug(f"[MainWindow] No se pudo cargar .compilador: {e}")
+
+    def _on_config_changed(self, config):
+        """Callback cuando cambia .compilador"""
+        log.info("[MainWindow] .compilador actualizado")
+        # Actualizar motor de compilación
+        self.compilation_engine.config = config
+        self.status_label.setText("🔄 Configuración .compilador actualizada")
 
     def init_ui(self):
         scroll = QScrollArea()
@@ -710,6 +743,17 @@ class MainWindow(QMainWindow):
             self.current_file = file_path
             self.file_label.setText(file_path)
             self.save_current_config(last_file=file_path)
+
+            project_dir = os.path.dirname(file_path)
+            try:
+                from .compilador_config import CompiladorConfig
+                config = CompiladorConfig(project_dir, auto_create=True)
+                self.compilador_config = config
+                self.compilation_engine.config = config
+                config.watch(self._on_config_changed)
+                log.info(f"[MainWindow] .compilador creado/cargado en {project_dir}")
+            except Exception as e:
+                log.debug(f"[MainWindow] Error con .compilador: {e}")
 
             lang_info = LanguageDetector.detect(file_path)
             if lang_info:
