@@ -195,12 +195,9 @@ class CompilerDetector:
 
             # 9. MSVC (Windows)
             if platform.system() == 'Windows':
-                vc_paths = [
-                    r'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat',
-                    r'C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat'
-                ]
-                if any(os.path.exists(p) for p in vc_paths):
-                    tools.append({'name': 'MSVC', 'command': 'cl', 'version': 'Visual Studio 2022', 'extensions': ['.c', '.cpp', '.cc', '.cxx'], 'type': 'compiler'})
+                if shutil.which('cl'):
+                    version = _get_version('cl', ['--version'])
+                    tools.append({'name': 'MSVC', 'command': 'cl', 'version': version, 'extensions': ['.c', '.cpp', '.cc', '.cxx'], 'type': 'compiler'})
 
             # 10. PyOxidizer
             if shutil.which('pyoxidizer'):

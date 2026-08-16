@@ -3,8 +3,9 @@
 Sistema de reglas para orquestación de builds multi-lenguaje.
 Cada regla define qué produce, qué necesita y cómo ejecutarse.
 """
-
-from typing import Dict, List, Set, Optional, Any
+import platform
+from .compiler_detector import CompilerDetector
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -158,7 +159,7 @@ class BuildRules:
 
 # ── REGISTRAR REGLAS POR DEFECTO ──
 
-def _register_default_rules():
+def _register_default_rules(tools:list):
     """Registra las reglas por defecto para todos los lenguajes."""
 
     # ── C / C++ ──
@@ -182,7 +183,7 @@ def _register_default_rules():
         requires=[],
         input_extensions=[".cpp", ".h", ".hpp"],
         output_extensions=[".pyd", ".so"],
-        build_command="python setup.py build_ext --inplace",
+        build_command=f"python setup.py build_ext --inplace {'-c mingw32' if platform.system() == 'Windows' and 'cl' not in tools else ''}",
         priority=10  # Va primero
     ))
 
@@ -293,4 +294,6 @@ def _register_default_rules():
 
 
 # Registrar reglas al importar
-_register_default_rules()
+detector = CompilerDetector()
+tools = detector.get_all_tools()
+_register_default_rules(tools)

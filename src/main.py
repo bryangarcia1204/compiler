@@ -776,7 +776,7 @@ class MainWindow(QMainWindow):
 
         self.worker = CompileWorker(self.compilation_engine, self.current_file,
                                     self.selected_tool, output_path, extra_args,
-                                    output_code, release_mode=release_mode, target=target )
+                                    output_code, release_mode=release_mode)
         if action == 'package':
             self.worker.action = 'package'
 
