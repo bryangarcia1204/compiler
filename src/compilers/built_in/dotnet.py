@@ -1,6 +1,8 @@
+# src/compilers/builtin/dotnet.py
 import os
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 from ..base import CompilerStrategy
+
 
 class DotnetStrategy(CompilerStrategy):
     @property
@@ -17,11 +19,11 @@ class DotnetStrategy(CompilerStrategy):
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
         output_type: str = 'exe',
-        release_mode: bool = False
+        release_mode: bool = False,
+        target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
 
-        # Si es .cs suelto, usar csc
         if file_path.endswith('.cs'):
             out = output_path or os.path.splitext(file_path)[0] + ('.exe' if os.name == 'nt' else '')
             cmd = ['csc', f'/out:{out}', file_path]
@@ -29,7 +31,6 @@ class DotnetStrategy(CompilerStrategy):
                 cmd.extend(extra_args)
             return cmd, None, []
 
-        # Si es proyecto, usar dotnet build
         cmd = ['dotnet', 'build']
         if release_mode:
             cmd.extend(['-c', 'Release'])
@@ -48,7 +49,8 @@ class DotnetStrategy(CompilerStrategy):
         self,
         file_path: str,
         output_path: Optional[str] = None,
-        extra_args: Optional[List[str]] = None
+        extra_args: Optional[List[str]] = None,
+        target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
         cmd = ['dotnet', 'publish']
@@ -62,5 +64,27 @@ class DotnetStrategy(CompilerStrategy):
             cmd.append(file_path)
         cwd = os.path.dirname(file_path) if os.path.isfile(file_path) else None
         return cmd, cwd, []
+
+    def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
+        """Genera archivos de configuración para .NET."""
+        project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
+        files = {}
+        files[f'{project_name}.csproj'] = f'''<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>{project_name}</RootNamespace>
+  </PropertyGroup>
+</Project>
+'''
+        files['.gitignore'] = """bin/
+obj/
+*.user
+*.suo
+"""
+        return files
+
 
 STRATEGY_CLASS = DotnetStrategy

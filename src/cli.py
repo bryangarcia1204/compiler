@@ -9,13 +9,16 @@ import argparse
 import sys
 import os
 import json
+import yaml
 from .compiler_detector import CompilerDetector
 from .compilation_engine import CompilationEngine
 from .proyect_editor.project_analyzer import ProjectAnalyzer
 from .proyect_editor.project_generator import ProjectGenerator
 from .output_types import OUTPUT_TYPE_MAP
 from . import logger
-from .config_manager import load_config, save_config
+from .compilador_config import CompiladorConfig
+from .plugins_market.plugin_manager import PluginManager
+from .plugins_market.plugin_loader import PluginLoader
 
 log = logger.Logger()
 
@@ -29,6 +32,15 @@ def main():
 
     # ── list-tools ──
     subparsers.add_parser('list-tools', help='Lista las herramientas detectadas en el sistema')
+
+    # ── init ──
+    parser_init = subparsers.add_parser('init', help='Inicializa un proyecto con .compilador')
+    parser_init.add_argument('directory', nargs='?', default='.', help='Directorio del proyecto')
+
+    # ── config ──
+    parser_config = subparsers.add_parser('config', help='Muestra o edita la configuración .compilador')
+    parser_config.add_argument('--show', action='store_true', help='Muestra la configuración actual')
+    parser_config.add_argument('--set', nargs=2, metavar=('KEY', 'VALUE'), help='Establece un valor')
 
     # ── analyze ──
     parser_analyze = subparsers.add_parser('analyze', help='Analiza un proyecto y muestra un resumen')
@@ -76,16 +88,61 @@ def main():
     parser_package.add_argument('--tool', help='Nombre de la herramienta de empaquetado (si no se especifica, se autodetecta)')
     parser_package.add_argument('--output', '-o', help='Ruta de salida (opcional)')
     parser_package.add_argument('--args', '-a', help='Argumentos adicionales (entre comillas)')
+    parser_package.add_argument('--target', default='native',
+                                help='Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)')
 
     # ── build ──
     parser_build = subparsers.add_parser('build', help='Compila un proyecto multi-lenguaje')
     parser_build.add_argument('directory', help='Directorio del proyecto')
     parser_build.add_argument('--target', default='native', help='Target de compilación')
 
+    # ── plugin ──
+    parser_plugin = subparsers.add_parser('plugin', help='Gestiona plugins del marketplace')
+    plugin_subparsers = parser_plugin.add_subparsers(dest='plugin_action', required=True, help='Acción a realizar')
+
+    # plugin list
+    plugin_subparsers.add_parser('list', help='Lista los plugins instalados')
+
+    # plugin available
+    plugin_subparsers.add_parser('available', help='Lista los plugins disponibles en el marketplace')
+
+    # plugin loaded
+    plugin_subparsers.add_parser('loaded', help='Lista los plugins cargados en memoria')
+
+    # plugin install
+    parser_install = plugin_subparsers.add_parser('install', help='Instala un plugin')
+    parser_install.add_argument('plugin_id', help='ID del plugin a instalar')
+    parser_install.add_argument('--version', help='Versión específica del plugin')
+
+    # plugin uninstall
+    parser_uninstall = plugin_subparsers.add_parser('uninstall', help='Desinstala un plugin')
+    parser_uninstall.add_argument('plugin_id', help='ID del plugin a desinstalar')
+
+    # plugin update
+    parser_update = plugin_subparsers.add_parser('update', help='Actualiza un plugin')
+    parser_update.add_argument('plugin_id', help='ID del plugin a actualizar')
+
+    # plugin reload
+    parser_reload = plugin_subparsers.add_parser('reload', help='Recarga un plugin (útil para desarrollo)')
+    parser_reload.add_argument('plugin_id', help='ID del plugin a recargar')
+
+    # plugin info
+    parser_info = plugin_subparsers.add_parser('info', help='Muestra información de un plugin')
+    parser_info.add_argument('plugin_id', help='ID del plugin')
+
+    # plugin create
+    parser_create = plugin_subparsers.add_parser('create', help='Crea un nuevo plugin desde una plantilla')
+    parser_create.add_argument('name', help='Nombre del plugin')
+    parser_create.add_argument('--languages', '-l', help='Lenguajes soportados (separados por comas)', default='')
+
     args = parser.parse_args()
 
     if args.command == 'list-tools':
         list_tools()
+    elif args.command == 'init':
+        init_project(args)
+    elif args.command == 'config':
+        config_command(args)
     elif args.command == 'analyze':
         analyze_project(args)
     elif args.command == 'generate':
@@ -98,14 +155,287 @@ def main():
         package_file(args)
     elif args.command == 'build':
         build_project(args)
+    elif args.command == 'plugin':
+        if args.plugin_action == 'list':
+            plugin_list()
+        elif args.plugin_action == 'available':
+            plugin_available()
+        elif args.plugin_action == 'loaded':
+            plugin_loaded()
+        elif args.plugin_action == 'install':
+            plugin_install(args)
+        elif args.plugin_action == 'uninstall':
+            plugin_uninstall(args)
+        elif args.plugin_action == 'update':
+            plugin_update(args)
+        elif args.plugin_action == 'reload':
+            plugin_reload(args)
+        elif args.plugin_action == 'info':
+            plugin_info(args)
+        elif args.plugin_action == 'create':
+            plugin_create(args)
 
 
-# ──────────────────────────────────────────────────────────
-# COMANDOS
-# ──────────────────────────────────────────────────────────
+# ── FUNCIONES DE PLUGINS ──
+
+def plugin_list():
+    """Lista los plugins instalados."""
+    manager = PluginManager()
+
+    plugins = manager.get_installed_plugins()
+
+    if not plugins:
+        print("No hay plugins instalados.")
+        return
+
+    print("\n📦 Plugins instalados:")
+    print("-" * 70)
+
+    # Plugins instalados
+    for p in plugins:
+        loaded = PluginLoader.is_loaded(p.id)
+        status = "✅ Cargado" if loaded else "⏸️ Instalado"
+        print(f"  {p.name} ({p.version}) - {status}")
+        if p.description:
+            print(f"    {p.description}")
+    print("-" * 70)
+
+    # Plugins cargados que no están en el registro
+    loaded_ids = PluginLoader.get_loaded_ids()
+    for pid in loaded_ids:
+        if not any(p.id == pid for p in plugins):
+            print(f"  {pid} - ✅ Cargado automáticamente")
+    print("-" * 70)
+
+
+def plugin_available():
+    """Lista los plugins disponibles en el marketplace."""
+    manager = PluginManager()
+
+    try:
+        plugins = manager.get_available_plugins()
+    except Exception as e:
+        print(f"❌ Error cargando marketplace: {e}")
+        return
+
+    if not plugins:
+        print("No hay plugins disponibles.")
+        return
+
+    print("\n📦 Plugins disponibles:")
+    print("-" * 70)
+    for p in plugins:
+        name = p.get('name', p.get('id', 'Unknown'))
+        version = p.get('version', 'latest')
+        author = p.get('author', 'Unknown')
+        langs = ', '.join(p.get('supported_languages', []))
+        desc = p.get('description', '')
+        print(f"  {name} (v{version}) por {author}")
+        if langs:
+            print(f"    Lenguajes: {langs}")
+        if desc:
+            print(f"    {desc}")
+        print()
+
+
+def plugin_loaded():
+    """Lista los plugins cargados en memoria."""
+    loaded = PluginLoader.get_loaded_plugins()
+
+    if not loaded:
+        print("No hay plugins cargados en memoria.")
+        return
+
+    print("\n🔌 Plugins cargados en memoria:")
+    print("-" * 50)
+    for plugin_id, strategy_class in loaded.items():
+        # Verificar si está instalado
+        manager = PluginManager()
+        installed = manager.registry.get_plugin(plugin_id)
+        status = "✅ Instalado" if installed else "📦 Cargado desde archivo"
+        print(f"  {plugin_id} -> {strategy_class.__name__} ({status})")
+    print("-" * 50)
+
+
+def plugin_install(args):
+    """Instala un plugin."""
+    manager = PluginManager()
+
+    print(f"📥 Instalando plugin '{args.plugin_id}'...")
+
+    if manager.install_plugin(args.plugin_id, args.version):
+        # Cargar el plugin después de instalar
+        if PluginLoader.load_plugin_by_id(args.plugin_id):
+            print(f"✅ Plugin '{args.plugin_id}' instalado y cargado.")
+        else:
+            print(f"✅ Plugin '{args.plugin_id}' instalado, pero no se pudo cargar. Usa 'plugin reload {args.plugin_id}'.")
+    else:
+        print(f"❌ No se pudo instalar el plugin '{args.plugin_id}'.")
+
+
+def plugin_uninstall(args):
+    """Desinstala un plugin."""
+    manager = PluginManager()
+
+    print(f"🗑️ Desinstalando plugin '{args.plugin_id}'...")
+
+    if manager.uninstall_plugin(args.plugin_id):
+        print(f"✅ Plugin '{args.plugin_id}' desinstalado.")
+    else:
+        print(f"❌ No se pudo desinstalar el plugin '{args.plugin_id}'.")
+
+
+def plugin_update(args):
+    """Actualiza un plugin."""
+    manager = PluginManager()
+
+    print(f"🔄 Actualizando plugin '{args.plugin_id}'...")
+
+    if manager.update_plugin(args.plugin_id):
+        # Recargar después de actualizar
+        PluginLoader.reload_plugin(args.plugin_id)
+        print(f"✅ Plugin '{args.plugin_id}' actualizado y recargado.")
+    else:
+        print(f"❌ No se pudo actualizar el plugin '{args.plugin_id}'.")
+
+
+def plugin_reload(args):
+    """Recarga un plugin."""
+    manager = PluginManager()
+
+    print(f"🔄 Recargando plugin '{args.plugin_id}'...")
+
+    if manager.reload_plugin(args.plugin_id):
+        print(f"✅ Plugin '{args.plugin_id}' recargado correctamente.")
+    else:
+        print(f"❌ No se pudo recargar el plugin '{args.plugin_id}'.")
+
+
+def plugin_info(args):
+    """Muestra información de un plugin."""
+    manager = PluginManager()
+
+    # Verificar si está instalado
+    installed = manager.registry.get_plugin(args.plugin_id)
+
+    if installed:
+        loaded = PluginLoader.is_loaded(args.plugin_id)
+        print(f"\n📄 Información de '{installed.name}':")
+        print(f"  ID: {installed.id}")
+        print(f"  Versión: {installed.version}")
+        print(f"  Autor: {installed.author}")
+        print(f"  Descripción: {installed.description}")
+        print(f"  Lenguajes: {', '.join(installed.supported_languages)}")
+        print(f"  Dependencias: {', '.join(installed.dependencies) or 'Ninguna'}")
+        print(f"  Estado: {'✅ Cargado' if loaded else '⏸️ Instalado'}")
+        print(f"  Instalado: {installed.installed_at}")
+        return
+
+    # Si no está instalado, buscar en el marketplace
+    try:
+        available = manager.market.get_plugin_info(args.plugin_id)
+        if available:
+            print(f"\n📄 Información de '{available.get('name', args.plugin_id)}':")
+            print(f"  ID: {args.plugin_id}")
+            print(f"  Versión: {available.get('version', 'N/A')}")
+            print(f"  Autor: {available.get('author', 'Unknown')}")
+            print(f"  Descripción: {available.get('description', 'Sin descripción')}")
+            print(f"  Lenguajes: {', '.join(available.get('supported_languages', []))}")
+            print(f"  Estado: 📦 Disponible en el marketplace")
+            return
+    except Exception:
+        pass
+
+    print(f"❌ Plugin '{args.plugin_id}' no encontrado.")
+
+
+def plugin_create(args):
+    """Crea un nuevo plugin desde una plantilla."""
+    from pathlib import Path
+
+    name = args.name
+    languages = [lang.strip() for lang in args.languages.split(',') if lang.strip()]
+
+    if not languages:
+        languages = ['custom']
+
+    # Generar plantilla
+    template = PluginLoader.create_plugin_template(name, languages)
+
+    # Guardar en el directorio de plugins
+    plugins_dir = Path(__file__).parent / "compilers" / "plugins"
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+
+    filepath = plugins_dir / f"{name}.py"
+
+    if filepath.exists():
+        print(f"⚠️  El archivo {filepath} ya existe. ¿Sobrescribir?")
+        response = input("Sobrescribir (s/N): ").strip().lower()
+        if response != 's':
+            print("Cancelado.")
+            return
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(template)
+
+    print(f"✅ Plugin '{name}' creado en {filepath}")
+
+    # Preguntar si instalar
+    response = input("¿Deseas instalar el plugin ahora? (s/N): ").strip().lower()
+    if response == 's':
+        manager = PluginManager()
+        if manager.install_plugin(name):
+            print(f"✅ Plugin '{name}' instalado y cargado.")
+        else:
+            print(f"❌ No se pudo instalar el plugin '{name}'.")
+
+
+# ── COMANDOS DE PROYECTO ──
+
+def init_project(args):
+    """Inicializa un proyecto con .compilador"""
+    config = CompiladorConfig(args.directory)
+    if config.config_path.exists():
+        print(f"⚠️  {config.config_path} ya existe.")
+        return
+    config.load()
+    print(f"✅ Proyecto inicializado en {args.directory}")
+
+
+def config_command(args):
+    """Muestra o edita la configuración .compilador"""
+    config = CompiladorConfig('.')
+    config.load()
+
+    if args.show:
+        print(yaml.dump(config.to_dict(), default_flow_style=False, indent=2))
+        return
+
+    if args.set:
+        key, value = args.set
+        try:
+            if value.lower() == 'true':
+                value = True
+            elif value.lower() == 'false':
+                value = False
+            elif '.' in value:
+                value = float(value)
+            else:
+                value = int(value)
+        except (ValueError, AttributeError):
+            pass
+
+        config.set(key, value)
+        config.save()
+        print(f"✅ {key} = {value}")
+        return
+
+    print("Uso: compilador-cli config --show  | --set KEY VALUE")
+
+
+# ── FUNCIONES EXISTENTES (sin cambios) ──
 
 def list_tools():
-    """Muestra todas las herramientas detectadas."""
     detector = CompilerDetector()
     tools = detector.get_all_tools()
     if not tools:
@@ -122,7 +452,6 @@ def list_tools():
 
 
 def analyze_project(args):
-    """Analiza un proyecto y muestra un resumen."""
     directory = args.directory
     if not os.path.isdir(directory):
         print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
@@ -139,11 +468,8 @@ def analyze_project(args):
     )
 
     summary = analyzer.analyze()
-
-    # Mostrar resumen
     print(analyzer.get_summary())
 
-    # Guardar en JSON si se solicita
     if args.output:
         try:
             with open(args.output, 'w', encoding='utf-8') as f:
@@ -154,7 +480,6 @@ def analyze_project(args):
 
 
 def generate_files(args):
-    """Genera archivos de configuración para un proyecto."""
     directory = args.directory
     if not os.path.isdir(directory):
         print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
@@ -162,7 +487,6 @@ def generate_files(args):
 
     print(f"Generando archivos para: {directory}")
 
-    # Primero analizar el proyecto
     analyzer = ProjectAnalyzer(
         project_dir=directory,
         use_ai=args.ai,
@@ -172,7 +496,6 @@ def generate_files(args):
     )
     project_info = analyzer.analyze()
 
-    # Generar archivos
     generator = ProjectGenerator(
         use_ai=args.ai,
         provider=args.provider,
@@ -186,12 +509,10 @@ def generate_files(args):
         print("No se generaron archivos.")
         sys.exit(1)
 
-    # Mostrar archivos generados y preguntar si guardar
     print(f"\n📁 Archivos generados ({len(files)}):")
     for name in files.keys():
         print(f"  - {name}")
 
-    # Guardar automáticamente en el directorio del proyecto
     saved = 0
     for filename, content in files.items():
         filepath = os.path.join(directory, filename)
@@ -208,7 +529,6 @@ def generate_files(args):
 
 
 def enhance_files(args):
-    """Mejora archivos de configuración con IA."""
     directory = args.directory
     if not os.path.isdir(directory):
         print(f"Error: El directorio '{directory}' no existe.", file=sys.stderr)
@@ -220,7 +540,6 @@ def enhance_files(args):
 
     print(f"Mejorando archivos para: {directory}")
 
-    # Analizar proyecto
     analyzer = ProjectAnalyzer(
         project_dir=directory,
         use_ai=args.ai,
@@ -230,7 +549,6 @@ def enhance_files(args):
     )
     project_info = analyzer.analyze()
 
-    # Leer archivos de configuración existentes
     existing_files = {}
     config_files = project_info.get('config_files', [])
     for entry in config_files:
@@ -251,7 +569,6 @@ def enhance_files(args):
         print("No se encontraron archivos de configuración para mejorar.", file=sys.stderr)
         sys.exit(1)
 
-    # Mejorar archivos
     generator = ProjectGenerator(
         use_ai=args.ai,
         provider=args.provider,
@@ -260,7 +577,6 @@ def enhance_files(args):
     )
 
     result = generator.enhance_files_with_ai(project_info, existing_files, args.prompt or "")
-
     files = result.get('files', {})
     build_cmd = result.get('build_command')
 
@@ -268,7 +584,6 @@ def enhance_files(args):
         print("No se mejoraron archivos.")
         sys.exit(1)
 
-    # Mostrar archivos mejorados
     print(f"\n📁 Archivos mejorados ({len(files)}):")
     for name in files.keys():
         print(f"  - {name}")
@@ -278,7 +593,6 @@ def enhance_files(args):
         print(f"  {build_cmd.get('description', '')}")
         print(f"  Comando: {' '.join(build_cmd.get('cmd', []))}")
 
-    # Guardar automáticamente
     saved = 0
     for filename, content in files.items():
         filepath = os.path.join(directory, filename)
@@ -375,14 +689,14 @@ def package_file(args):
         # Detectar si es Python con PyInstaller
         if file_path.endswith('.py'):
             # Buscar PyOxidizer
-            detector = CompilerDetector()
             tools = detector.get_all_tools()
             pyoxidizer = next((t for t in tools if t.get('name').lower() == 'PyOxidizer'.lower()), None)
 
-            if pyoxidizer and tool.get('name') != 'PyOxidizer':
+            if pyoxidizer:
                 print(f"🌍 Usando PyOxidizer para {args.target}.")
+                # Usar PyOxidizer como herramienta
                 tool = pyoxidizer
-            elif not pyoxidizer:
+            else:
                 print(f"⚠️  PyInstaller no soporta cross-compilation a {args.target}. PyOxidizer no está instalado.", file=sys.stderr)
                 print(f"⚠️  Continuando con plataforma nativa.", file=sys.stderr)
                 args.target = 'native'
@@ -431,6 +745,7 @@ def package_file(args):
         print(f"❌ Empaquetado falló con código {result.get('returncode', -1)}.", file=sys.stderr)
         sys.exit(1)
 
+
 def build_project(args):
     """Compila un proyecto multi-lenguaje."""
     directory = args.directory
@@ -439,7 +754,6 @@ def build_project(args):
         sys.exit(1)
 
     # Analizar proyecto
-    from .proyect_editor.project_analyzer import ProjectAnalyzer
     analyzer = ProjectAnalyzer(directory, use_ai=False)
     project_info = analyzer.analyze()
 
@@ -454,6 +768,7 @@ def build_project(args):
     else:
         print("❌ Construcción falló.", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()

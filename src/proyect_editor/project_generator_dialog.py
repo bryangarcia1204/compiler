@@ -562,7 +562,7 @@ class ProjectGeneratorDialog(QMainWindow):
             editor = self.file_tabs.widget(i)
             filename = self.file_tabs.tabText(i).lstrip("*")
             if editor:
-                current_files[filename] = editor.text().strip()
+                current_files[filename] = editor.get_text().strip()
 
         prompt = self.prompt_edit.toPlainText().strip()
 

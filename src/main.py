@@ -22,6 +22,7 @@ from .compilation_engine import CompilationEngine
 from .error_parser import ErrorParser
 from .output_types import OUTPUT_TYPE_MAP
 from .config_manager import load_config, save_config
+from .compilador_config import CompiladorConfig
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -246,6 +247,30 @@ class MainWindow(QMainWindow):
         # Iniciar detección de herramientas en segundo plano
         QTimer.singleShot(200, self.start_tool_detection)
 
+        # Cargar plugins del marketplace
+        self._load_market_plugins()
+
+    def _load_market_plugins(self):
+        """Carga los plugins instalados en el marketplace al iniciar."""
+        try:
+            from .plugins_market.plugin_manager import PluginManager
+            from .plugins_market.plugin_loader import PluginLoader
+
+            manager = PluginManager()
+            # Cargar plugins del directorio
+            count = PluginLoader.load_all_plugins(manager.registry)
+
+            # También cargar plugins del registro
+            for plugin in manager.registry.get_active_plugins():
+                if not PluginLoader.is_loaded(plugin.id):
+                    PluginLoader.load_plugin_by_id(plugin.id, manager.registry)
+                    count += 1
+
+            if count > 0:
+                log.info(f"[MainWindow] {count} plugins cargados del marketplace")
+        except Exception as e:
+            log.debug(f"[MainWindow] No se pudieron cargar plugins: {e}")
+
     def init_ui(self):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -298,6 +323,11 @@ class MainWindow(QMainWindow):
         self.refresh_tools_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_BrowserReload', 0)))
         self.refresh_tools_btn.clicked.connect(self.refresh_tools)
         tools_layout.addWidget(self.refresh_tools_btn)
+        # ── Botón del Marketplace ──
+        self.market_btn = QPushButton("Marketplace")
+        self.market_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileDialogDetailedView', 0)))
+        self.market_btn.clicked.connect(self.open_marketplace)
+        tools_layout.addWidget(self.market_btn)
         tools_group.setLayout(tools_layout)
         main_layout.addWidget(tools_group)
 
@@ -405,12 +435,29 @@ class MainWindow(QMainWindow):
         self.release_checkbox.stateChanged.connect(self.save_current_config)
 
         self.update_tools_list([])
+        
+    def open_marketplace(self):
+        """Abre el marketplace de plugins."""
+        try:
+            from .plugins_market.market_dialog import MarketDialog
+            dialog = MarketDialog(self)
+            dialog.exec_()
+        except ImportError as e:
+            QMessageBox.critical(self, "Error", f"No se pudo cargar el marketplace:\n{e}")
+            log.error(f"[MainWindow] Error abriendo marketplace: {e}")
 
     def open_code_editor(self):
         """Abre una ventana de editor de código."""
         try:
             from .proyect_editor.editor.editor_dialog import EditorDialog
-            dialog = EditorDialog(self, self.file_label.text().strip())
+            # Si hay un proyecto activo, intentar abrir .compilador
+            initial_file = self.file_label.text().strip()
+            if not initial_file or not os.path.exists(initial_file):
+                # Buscar .compilador en el directorio actual o en el directorio del proyecto
+                config = CompiladorConfig(os.getcwd())
+                if config.config_path.exists():
+                    initial_file = str(config.config_path)
+            dialog = EditorDialog(self, initial_file)
             dialog.show()
         except ImportError as e:
             QMessageBox.critical(self, "Error", f"No se pudo cargar el editor:\n{e}")

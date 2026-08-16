@@ -1,6 +1,8 @@
+# src/compilers/builtin/emcc.py
 import os
 from typing import List, Tuple, Optional, Any
 from ..base import CompilerStrategy
+
 
 class EmscriptenStrategy(CompilerStrategy):
     @property
@@ -17,11 +19,12 @@ class EmscriptenStrategy(CompilerStrategy):
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
         output_type: str = 'exe',
-        release_mode: bool = False
+        release_mode: bool = False,
+        target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
         if output_type != 'wasm':
-            # Para otros tipos, usar fallback
+            # Fallback a None si no es wasm
             return None, None, []
         out = output_path or os.path.splitext(file_path)[0] + '.wasm'
         cmd = ['emcc', file_path, '-o', out]
@@ -35,9 +38,10 @@ class EmscriptenStrategy(CompilerStrategy):
         self,
         file_path: str,
         output_path: Optional[str] = None,
-        extra_args: Optional[List[str]] = None
+        extra_args: Optional[List[str]] = None,
+        target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
-        # emcc no tiene un modo "package" específico, usamos build_command
-        return self.build_command(file_path, output_path, extra_args, 'wasm', False)
+        return self.build_command(file_path, output_path, extra_args, 'wasm', False, target)
+
 
 STRATEGY_CLASS = EmscriptenStrategy

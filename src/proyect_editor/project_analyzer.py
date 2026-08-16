@@ -1540,7 +1540,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
         Detecta qué artefactos necesita y produce el proyecto.
         Usa las reglas de build para inferir el orden y las dependencias.
         """
-        from ..build_rules import BuildRules, BuildArtifact
+        from ..build_rules import BuildRules
 
         languages = list(self.summary['languages'].keys())
         rules = BuildRules.build_order(languages)
@@ -1551,12 +1551,18 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
         for rule_name in rules:
             rule = BuildRules.get_rule(rule_name)
             if rule:
-                # Verificar si los archivos fuente coinciden
-                has_inputs = any(
-                    any(f.get('path', '').endswith(ext) or f.get('rel_path', '').endswith(ext) or f.get('name', '').endswith(ext) 
-                        for ext in rule.input_extensions)
-                    for f in self.summary['files']
-                )
+                # Verificar si los archivos fuente coinciden con las extensiones de entrada
+                has_inputs = False
+                for f in self.summary['files']:
+                    # Obtener el nombre del archivo (puede estar en 'path', 'rel_path' o 'name')
+                    file_name = f.get('path') or f.get('rel_path') or f.get('name', '')
+                    for ext in rule.input_extensions:
+                        if file_name.endswith(ext):
+                            has_inputs = True
+                            break
+                    if has_inputs:
+                        break
+
                 if has_inputs or rule.produces:
                     self.summary['build_plan'].append({
                         'name': rule.name,

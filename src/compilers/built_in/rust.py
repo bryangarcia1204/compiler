@@ -37,11 +37,9 @@ class RustStrategy(CompilerStrategy):
                 cmd.append('--release')
             if output_path:
                 post_actions.append(('cargo_move', output_path))
-            # ── TARGET ──
             if target != 'native':
                 rust_target = TargetManager.get_rust_target(target)
                 if rust_target:
-                    # Primero, instalar el target si no está instalado
                     cmd.extend(['--target', rust_target])
             if extra_args:
                 cmd.extend(extra_args)
@@ -49,7 +47,7 @@ class RustStrategy(CompilerStrategy):
             return cmd, cwd, post_actions
         else:
             out = output_path or os.path.splitext(file_path)[0] + ('.exe' if os.name == 'nt' else '')
-            cmd = ['rustc', '-o', file_path, out]
+            cmd = ['rustc', file_path, '-o', out]
             if target != 'native':
                 rust_target = TargetManager.get_rust_target(target)
                 if rust_target:
@@ -67,12 +65,9 @@ class RustStrategy(CompilerStrategy):
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
-        # Empaquetado: cargo build --release (igual que original)
         extra_args = extra_args or []
         cmd = ['cargo', 'build', '--release']
         if output_path:
-            # En el original no se maneja output_path en empaquetado,
-            # pero podemos mantenerlo igual.
             pass
         if extra_args:
             cmd.extend(extra_args)
@@ -89,7 +84,6 @@ class RustStrategy(CompilerStrategy):
 
         files = {}
 
-        # ── Cargo.toml ──
         files['Cargo.toml'] = f'''[package]
 name = "{project_name}"
 version = "0.1.0"
@@ -103,7 +97,6 @@ name = "{project_name}"
 path = "src/main.rs"
 '''
 
-        # ── .gitignore ──
         files['.gitignore'] = """target/
 Cargo.lock
 *.rs.bk

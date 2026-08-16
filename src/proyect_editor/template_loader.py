@@ -5,10 +5,8 @@ Carga y gestiona plantillas de archivos de configuración desde una base de dato
 
 import os
 import json
-import re
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
-from ..ai_client import AIClient
 from .. import logger
 
 log = logger.Logger()
@@ -24,7 +22,6 @@ class TemplateLoader:
         self.templates_path = templates_path or os.path.join(
             os.path.dirname(__file__), 'project_templates', 'templates_db.json'
         )
-
         self.db = self._load_templates()
 
     def _load_templates(self) -> Dict:
@@ -37,18 +34,15 @@ class TemplateLoader:
             return {'version': '1.0.0', 'languages': {}}
 
     def get_language_info(self, language: str) -> Optional[Dict]:
-        """Obtiene la información de un lenguaje específico."""
         return self.db.get('languages', {}).get(language)
 
     def get_language_from_extension(self, extension: str) -> Optional[str]:
-        """Obtiene el lenguaje a partir de una extensión."""
         for lang, info in self.db.get('languages', {}).items():
             if extension in info.get('extensions', []):
                 return lang
         return None
 
     def get_template(self, language: str, filename: str) -> Optional[str]:
-        """Obtiene el contenido de una plantilla específica."""
         lang_info = self.get_language_info(language)
         if lang_info:
             config_files = lang_info.get('config_files', {})
@@ -57,7 +51,6 @@ class TemplateLoader:
         return None
 
     def get_all_templates_for_language(self, language: str) -> Dict[str, str]:
-        """Obtiene todas las plantillas para un lenguaje."""
         lang_info = self.get_language_info(language)
         if not lang_info:
             return {}
@@ -67,7 +60,6 @@ class TemplateLoader:
         }
 
     def get_build_commands(self, language: str) -> Dict[str, str]:
-        """Obtiene los comandos de build para un lenguaje."""
         lang_info = self.get_language_info(language)
         if lang_info:
             return lang_info.get('build_commands', {})
@@ -78,7 +70,6 @@ class TemplateLoader:
         language: str,
         project_name: str,
     ) -> Dict[str, str]:
-        """Genera archivos usando plantillas predefinidas."""
         templates = self.get_all_templates_for_language(language)
         if not templates:
             log.warning(f"[TemplateLoader] No hay plantillas para {language}")
@@ -88,7 +79,6 @@ class TemplateLoader:
         for filename, template in templates.items():
             try:
                 rendered = template
-                # Reemplazar variables
                 if '{project_name}' in rendered:
                     rendered = rendered.replace('{project_name}', project_name)
                 if '{PROJECT_NAME}' in rendered:

@@ -29,23 +29,20 @@ class ElectronBuilderStrategy(CompilerStrategy):
         release_mode: bool = False,
         target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
-        """
-        Electron-Builder genera ejecutables, no compila en sí.
-        Usamos build_package_command.
-        """
-        return self.build_package_command(file_path, output_path, extra_args, target)
+        return self.build_package_command(file_path, output_path, extra_args, target, release_mode)
 
     def build_package_command(
         self,
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        target: str = 'native'
+        target: str = 'native',
+        release_mode: bool = False
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
 
-        # Verificar si está instalado
-        if not shutil.which('electron-builder'):
+        # Verificar si npx está disponible
+        if not shutil.which('npx'):
             return [], None, []
 
         # Detectar si es un proyecto Electron válido
@@ -55,34 +52,30 @@ class ElectronBuilderStrategy(CompilerStrategy):
 
         cmd = ['npx', 'electron-builder']
 
+        # ── Modo release ──
+        if release_mode:
+            cmd.append('--publish')  # o '--config' según sea necesario
+
         # ── Flags de plataforma ──
         if target == 'windows-x86_64':
-            cmd.append('--win')
-            cmd.append('--x64')
+            cmd.extend(['--win', '--x64'])
         elif target == 'windows-x86':
-            cmd.append('--win')
-            cmd.append('--ia32')
+            cmd.extend(['--win', '--ia32'])
         elif target == 'windows-arm64':
-            cmd.append('--win')
-            cmd.append('--arm64')
+            cmd.extend(['--win', '--arm64'])
         elif target == 'macos-x86_64':
-            cmd.append('--mac')
-            cmd.append('--x64')
+            cmd.extend(['--mac', '--x64'])
         elif target == 'macos-arm64':
-            cmd.append('--mac')
-            cmd.append('--arm64')
+            cmd.extend(['--mac', '--arm64'])
         elif target == 'macos-universal':
-            cmd.append('--mac')
-            cmd.append('--universal')
+            cmd.extend(['--mac', '--universal'])
         elif target == 'linux-x86_64':
-            cmd.append('--linux')
-            cmd.append('--x64')
+            cmd.extend(['--linux', '--x64'])
         elif target == 'linux-arm64':
-            cmd.append('--linux')
-            cmd.append('--arm64')
+            cmd.extend(['--linux', '--arm64'])
         else:
             # nativo: electron-builder detecta la plataforma actual
-            cmd.append('--dir')  # modo directorio, no instalador
+            cmd.append('--dir')
 
         if extra_args:
             cmd.extend(extra_args)
@@ -91,7 +84,6 @@ class ElectronBuilderStrategy(CompilerStrategy):
         return cmd, cwd, []
 
     def _find_package_json(self, file_path: str) -> Optional[str]:
-        """Busca package.json en el directorio actual o superiores."""
         search_dir = os.path.dirname(file_path) if os.path.isfile(file_path) else file_path
         for root, _, files in os.walk(search_dir):
             if 'package.json' in files:
@@ -99,9 +91,6 @@ class ElectronBuilderStrategy(CompilerStrategy):
         return None
 
     def generate_config_files(self, project_info: dict, target: str = 'native') -> dict:
-        """
-        Genera electron-builder.json para el target especificado.
-        """
         config = {
             "appId": "com.example.app",
             "productName": project_info.get('project_name', 'MyApp'),
@@ -124,10 +113,7 @@ class ElectronBuilderStrategy(CompilerStrategy):
                 "icon": "build/icon.png"
             } if target.startswith('linux') else {},
         }
-
-        # Limpiar campos vacíos
         config = {k: v for k, v in config.items() if v}
-
         return {
             'electron-builder.json': json.dumps(config, indent=2)
         }

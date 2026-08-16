@@ -1,18 +1,18 @@
-# src/compilers/builtin/gcc.py
+# src/compilers/builtin/clang.py
 import os
 from typing import List, Tuple, Optional, Any, Dict
 from ..base import CompilerStrategy
 from ...target_manager import TargetManager
 
 
-class GCCStrategy(CompilerStrategy):
+class ClangStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:
-        return 'gcc'
+        return 'clang'
 
     @property
     def supported_extensions(self) -> List[str]:
-        return ['.c']
+        return ['.c', '.cpp', '.cc', '.cxx']
 
     def build_command(
         self,
@@ -24,9 +24,8 @@ class GCCStrategy(CompilerStrategy):
         target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
-        cmd = ['gcc']
+        cmd = ['clang']
         out = output_path or os.path.splitext(file_path)[0]
-        post_actions = []
 
         # ── CROSS-COMPILATION ──
         if target != 'native':
@@ -34,7 +33,6 @@ class GCCStrategy(CompilerStrategy):
             if target_info:
                 available = TargetManager.get_available_tools()
                 tools = available.get(target, [])
-
                 if 'zig' in tools:
                     cmd = ['zig', 'cc']
                     zig_target = TargetManager.get_zig_target(target)
@@ -43,40 +41,37 @@ class GCCStrategy(CompilerStrategy):
                 else:
                     prefix = TargetManager.get_compiler_prefix(target)
                     if prefix:
-                        cmd = [f'{prefix}gcc']
+                        cmd = [f'{prefix}clang']
+
+        # ── MODIFICACIONES POR TIPO DE SALIDA ──
+        if output_type in ('exe', 'bin', 'go-bin', 'rust-bin', 'cargo-release'):
+            out = out + ('.exe' if os.name == 'nt' and not out.endswith('.exe') else '')
+        elif output_type in ('dll', 'so', 'dylib'):
+            ext = {'dll': '.dll', 'so': '.so', 'dylib': '.dylib'}[output_type]
+            out = out + ext if not out.endswith(ext) else out
+        elif output_type in ('obj', 'o'):
+            out = out + ('.obj' if os.name == 'nt' else '.o')
+        elif output_type == 'pyd':
+            out = out + ('.pyd' if os.name == 'nt' else '.so')
+
+        if output_type in ('dll', 'so', 'dylib', 'pyd'):
+            cmd.append('-shared')
+        if output_type in ('obj',):
+            cmd.append('-c')
 
         if release_mode:
             cmd.append('-O2')
         else:
             cmd.append('-g')
 
-        if output_type == 'obj':
-            cmd.append('-c')
-        elif output_type in ('dll', 'so', 'dylib'):
-            cmd.append('-shared')
-        elif output_type in ('a', 'lib'):
-            cmd.append('-c')
-            if output_path:
-                obj_path = output_path.replace('.a', '.o').replace('.lib', '.obj')
-                cmd.extend(['-o', obj_path])
-                post_actions = [('archive', (obj_path, output_path))]
-            else:
-                post_actions = []
-        else:
-            post_actions = []
-
-        if output_path and output_type not in ('a', 'lib'):
-            cmd.extend(['-o', output_path])
-
+        cmd.extend(['-o', out, file_path])
         if extra_args:
             cmd.extend(extra_args)
-
-        cmd.append(file_path)
-        return cmd, None, post_actions
+        return cmd, None, []
 
     def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
         """
-        Genera archivos de configuración para C.
+        Genera archivos de configuración para Clang.
         """
         project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
         main_file = project_info.get('main_file', 'main.c')
@@ -85,17 +80,24 @@ class GCCStrategy(CompilerStrategy):
 
         files = {}
 
-        # ── Makefile ──
-        files['Makefile'] = f'''# Makefile para proyecto C
+        # ── Makefile para Clang ──
+        files['Makefile'] = f'''# Makefile para proyecto C/C++ con Clang
 # Generado por Compilador Profesional
 
-CC = gcc
-CFLAGS = -Wall -Wextra -O2 -std=c11
+CC = clang
+CFLAGS = -Wall -Wextra -O2 -std=c17
+CXX = clang++
+CXXFLAGS = -Wall -Wextra -O2 -std=c++17
 LDFLAGS =
 
 TARGET = {project_name}
 SRCS = {src_name}
 OBJS = $(SRCS:.c=.o)
+ifeq ($(findstring .cpp,$(SRCS)),.cpp)
+    OBJS = $(SRCS:.cpp=.o)
+    CC = $(CXX)
+    CFLAGS = $(CXXFLAGS)
+endif
 
 all: $(TARGET)
 
@@ -104,6 +106,9 @@ $(TARGET): $(OBJS)
 
 %.o: %.c
 \t$(CC) $(CFLAGS) -c $< -o $@
+
+%.o: %.cpp
+\t$(CC) $(CXXFLAGS) -c $< -o $@
 
 clean:
 \trm -f $(OBJS) $(TARGET)
@@ -114,22 +119,22 @@ run: $(TARGET)
 .PHONY: all clean run
 '''
 
-        # ── CMakeLists.txt ── (solo si no existe)
+        # ── CMakeLists.txt ──
         if not has_cmake:
             files['CMakeLists.txt'] = f'''cmake_minimum_required(VERSION 3.10)
 project({project_name} VERSION 0.1.0)
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-file(GLOB SOURCES "src/*.c")
+file(GLOB SOURCES "src/*.c" "src/*.cpp" "src/*.cc" "src/*.cxx")
 
 add_executable({project_name} ${{SOURCES}})
 
 target_include_directories({project_name} PRIVATE include)
 '''
 
-        # ── .gitignore ──
         files['.gitignore'] = """*.o
 *.obj
 *.exe
@@ -144,4 +149,4 @@ build/
         return files
 
 
-STRATEGY_CLASS = GCCStrategy
+STRATEGY_CLASS = ClangStrategy

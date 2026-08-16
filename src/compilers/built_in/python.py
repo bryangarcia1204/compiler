@@ -1,6 +1,11 @@
+# src/compilers/builtin/python.py
 from typing import List, Tuple, Optional, Any, Dict
 import os
 from ..base import CompilerStrategy
+from ... import logger
+
+log = logger.Logger()
+
 
 class PythonStrategy(CompilerStrategy):
     @property
@@ -17,7 +22,8 @@ class PythonStrategy(CompilerStrategy):
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
         output_type: str = 'exe',
-        release_mode: bool = False
+        release_mode: bool = False,
+        target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
         cmd = ['python', file_path]
@@ -29,9 +35,12 @@ class PythonStrategy(CompilerStrategy):
         self,
         file_path: str,
         output_path: Optional[str] = None,
-        extra_args: Optional[List[str]] = None
+        extra_args: Optional[List[str]] = None,
+        target: str = 'native'
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
+        if target != 'native':
+            log.warning(f"[Python] PyInstaller no soporta cross-compilation a {target}. Se usará el target nativo.")
         cmd = ['pyinstaller', '--onefile', '--noconsole']
         if output_path:
             base_dir = os.path.dirname(output_path)
@@ -46,32 +55,37 @@ class PythonStrategy(CompilerStrategy):
         return cmd, None, []
 
     def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
-            """
-            Genera archivos de configuración para Python.
-            """
-            project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
-            main_file = os.path.basename(project_info.get('main_file', 'main.py'))
-            dependencies = list(project_info.get('dependencies', set()))[:10]
+        """
+        Genera archivos de configuración para Python, incluyendo
+        flags de compilación cruzada si es necesario.
+        """
+        project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
+        main_file = os.path.basename(project_info.get('main_file', 'main.py'))
+        dependencies = list(project_info.get('dependencies', set()))[:10]
+        project_type = project_info.get('project_type', 'application')
 
-            files = {}
+        files = {}
 
-            # ── requirements.txt ──
-            req_lines = ['# Dependencias del proyecto', '# Generado por Compilador Profesional', '']
-            if dependencies:
-                req_lines.extend(dependencies)
-            else:
-                req_lines.extend(['# Añade aquí tus dependencias', '', '# Ejemplo:', '# numpy>=1.21.0'])
-            files['requirements.txt'] = '\n'.join(req_lines)
+        # ── requirements.txt ──
+        req_lines = ['# Dependencias del proyecto', '# Generado por Compilador Profesional', '']
+        if dependencies:
+            req_lines.extend(dependencies)
+        else:
+            req_lines.extend(['# Añade aquí tus dependencias', '', '# Ejemplo:', '# numpy>=1.21.0'])
+        files['requirements.txt'] = '\n'.join(req_lines)
 
-            # ── .gitignore ──
-            files['.gitignore'] = self._gitignore_python()
+        # ── .gitignore ──
+        files['.gitignore'] = self._gitignore_python()
 
-            # ── setup.py (si es librería o extensión) ──
-            project_type = project_info.get('project_type', 'application')
-            if project_type in ('library', 'extension'):
-                files['setup.py'] = self._setup_py(project_name, project_info)
+        # ── setup.py (si es librería o extensión) ──
+        if project_type in ('library', 'extension'):
+            # Si hay targets múltiples, añadir comentario en setup.py
+            target_info = ""
+            if targets and len(targets) > 1:
+                target_info = f"\n# Targets: {', '.join(targets)}"
+            files['setup.py'] = self._setup_py(project_name, project_info) + target_info
 
-            return files
+        return files
 
     def _gitignore_python(self) -> str:
         return """__pycache__/
