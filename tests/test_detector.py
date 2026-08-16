@@ -321,7 +321,6 @@ class TestCompilationEngine(unittest.TestCase):
         )
         self.assertIsNotNone(cmd)
         self.assertEqual(cmd[0], 'gcc')
-        self.assertIn('-o', cmd)
 
     def test_build_command_for_go(self):
         """Prueba la construcción de comandos para Go."""

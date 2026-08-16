@@ -18,14 +18,16 @@ class CompilerStrategy(ABC):
         """Extensiones de archivo que soporta (ej: ['.c'])."""
         pass
 
+    # src/compilers/base.py
     @abstractmethod
     def build_command(
         self,
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        output_type: str = 'exe',
-        release_mode: bool = False
+        output_type: str = '',
+        release_mode: bool = False,
+        target: str = 'native'  # <-- NUEVO
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         """
         Construye el comando de compilación/ejecución.
@@ -39,10 +41,19 @@ class CompilerStrategy(ABC):
         self,
         file_path: str,
         output_path: Optional[str] = None,
-        extra_args: Optional[List[str]] = None
+        extra_args: Optional[List[str]] = None,
+        target: str = 'native'  # <-- NUEVO
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         """
         (Opcional) Construye el comando para empaquetar.
         Por defecto, usa build_command con output_type='exe'.
         """
-        return self.build_command(file_path, output_path, extra_args, 'exe', False)
+        return self.build_command(file_path, output_path, extra_args, 'exe', False, target)
+
+    def generate_config_files(self, project_info: dict, target: str = 'native') -> dict:
+        """
+        Genera archivos de configuración adicionales para el target específico.
+        Por defecto retorna dict vacío.
+        Los plugins pueden sobrescribir este método.
+        """
+        return {}

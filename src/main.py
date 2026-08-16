@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QIcon
 
+from .target_manager import TargetManager
 from .argument_suggester import ArgumentSuggester
 from .language_detector import LanguageDetector
 from .compiler_detector import CompilerDetector
@@ -270,11 +271,15 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(file_group)
 
         # --- Información del lenguaje ---
+        self.editor_btn = QPushButton("Editor de código")
+        self.editor_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_FileIcon', 0)))
+        self.editor_btn.clicked.connect(self.open_code_editor)
         lang_group = QGroupBox("Información del lenguaje")
         lang_layout = QVBoxLayout()
         self.lang_info_label = QLabel("Lenguaje: -- | Tipo: --")
         self.lang_info_label.setStyleSheet("font-weight: bold; font-size: 13px; color: #4caf50;")
         lang_layout.addWidget(self.lang_info_label)
+        lang_layout.addWidget(self.editor_btn)
         lang_group.setLayout(lang_layout)
         main_layout.addWidget(lang_group)
 
@@ -289,7 +294,6 @@ class MainWindow(QMainWindow):
         self.project_gen_btn.clicked.connect(self.open_project_generator)
         tools_layout.addWidget(QLabel("Seleccione una herramienta:"))
         tools_layout.addWidget(self.tools_combo)
-        tools_layout.addWidget(self.project_gen_btn)
         self.refresh_tools_btn = QPushButton("Refrescar herramientas")
         self.refresh_tools_btn.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_BrowserReload', 0)))
         self.refresh_tools_btn.clicked.connect(self.refresh_tools)
@@ -333,6 +337,12 @@ class MainWindow(QMainWindow):
         args_layout.addWidget(self.suggest_args_btn)
         output_layout.addWidget(QLabel("Argumentos adicionales:"))
         output_layout.addLayout(args_layout)
+        self.target_combo = QComboBox()
+        self.target_combo.addItems(TargetManager.get_available_targets())
+        self.target_combo.setCurrentText('native')
+        self.target_combo.setToolTip("Selecciona la plataforma destino")
+        output_layout.addWidget(QLabel("Target:"))
+        output_layout.addWidget(self.target_combo)
 
         self.release_checkbox = QCheckBox("Build Release (donde aplique)")
         output_layout.addWidget(self.release_checkbox)
@@ -376,6 +386,7 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.action_button)
         btn_layout.addWidget(self.stop_button)
         btn_layout.addWidget(self.clear_logs_btn)
+        btn_layout.addWidget(self.project_gen_btn)
         btn_layout.addStretch()
         main_layout.addLayout(btn_layout)
 
@@ -394,6 +405,16 @@ class MainWindow(QMainWindow):
         self.release_checkbox.stateChanged.connect(self.save_current_config)
 
         self.update_tools_list([])
+
+    def open_code_editor(self):
+        """Abre una ventana de editor de código."""
+        try:
+            from .proyect_editor.editor.editor_dialog import EditorDialog
+            dialog = EditorDialog(self, self.file_label.text().strip())
+            dialog.show()
+        except ImportError as e:
+            QMessageBox.critical(self, "Error", f"No se pudo cargar el editor:\n{e}")
+            log.error(f"[MainWindow] Error abriendo editor: {e}")
 
     def open_project_generator(self):
         """Abre el diálogo del generador de proyectos."""
@@ -663,14 +684,19 @@ class MainWindow(QMainWindow):
                 self.output_type_combo.setEnabled(False)
                 self.mode_package.setEnabled(False)
                 self.update_output_types_combo(list(OUTPUT_TYPE_MAP.values()))
-                
+
     def update_tools_list(self, tools):
         self.tools_combo.clear()
         for tool in tools:
-            display = f"{tool['name']} ({tool.get('version', 'desconocida')}) - {tool['type'].capitalize()}"
+            display = f"{tool['name']} ({tool.get('version', 'desconocida')})"
+            if tool.get('supports_cross_compile'):
+                display += " 🌍"  # Icono de multi-target
+            display += f" - {tool['type'].capitalize()}"
             self.tools_combo.addItem(display, tool)
             idx = self.tools_combo.count() - 1
             tooltip = f"Comando: {tool.get('command')}\nVersión: {tool.get('version','desconocida')}"
+            if tool.get('supports_cross_compile'):
+                tooltip += "\n✅ Soporta compilación cruzada"
             self.tools_combo.setItemData(idx, tooltip, Qt.ToolTipRole)
         self.action_button.setEnabled(len(tools) > 0)
         self.update_mode_buttons()
@@ -744,10 +770,13 @@ class MainWindow(QMainWindow):
         self.action_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.action_button.setText("Procesando...")
+        target = self.target_combo.currentText()
+        if target == 'native':
+            target = 'native'
 
         self.worker = CompileWorker(self.compilation_engine, self.current_file,
                                     self.selected_tool, output_path, extra_args,
-                                    output_code, release_mode=release_mode)
+                                    output_code, release_mode=release_mode, target=target )
         if action == 'package':
             self.worker.action = 'package'
 

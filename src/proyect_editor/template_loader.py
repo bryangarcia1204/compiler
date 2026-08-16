@@ -77,7 +77,6 @@ class TemplateLoader:
         self,
         language: str,
         project_name: str,
-        custom_prompt: str = ""
     ) -> Dict[str, str]:
         """Genera archivos usando plantillas predefinidas."""
         templates = self.get_all_templates_for_language(language)

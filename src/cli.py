@@ -64,6 +64,8 @@ def main():
     parser_compile.add_argument('--output', '-o', help='Ruta de salida (opcional)')
     parser_compile.add_argument('--type', '-t', default='exe',
                                 help='Tipo de salida (ej: exe, dll, obj, etc.)')
+    parser_compile.add_argument('--target', default='native',
+                            help='Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)')
     parser_compile.add_argument('--release', '-r', action='store_true',
                                 help='Modo release (optimizaciones)')
     parser_compile.add_argument('--args', '-a', help='Argumentos adicionales (entre comillas)')
@@ -74,6 +76,11 @@ def main():
     parser_package.add_argument('--tool', help='Nombre de la herramienta de empaquetado (si no se especifica, se autodetecta)')
     parser_package.add_argument('--output', '-o', help='Ruta de salida (opcional)')
     parser_package.add_argument('--args', '-a', help='Argumentos adicionales (entre comillas)')
+
+    # ── build ──
+    parser_build = subparsers.add_parser('build', help='Compila un proyecto multi-lenguaje')
+    parser_build.add_argument('directory', help='Directorio del proyecto')
+    parser_build.add_argument('--target', default='native', help='Target de compilación')
 
     args = parser.parse_args()
 
@@ -89,6 +96,8 @@ def main():
         compile_file(args)
     elif args.command == 'package':
         package_file(args)
+    elif args.command == 'build':
+        build_project(args)
 
 
 # ──────────────────────────────────────────────────────────
@@ -265,7 +274,7 @@ def enhance_files(args):
         print(f"  - {name}")
 
     if build_cmd:
-        print(f"\n🔧 Comando de build sugerido:")
+        print("\n🔧 Comando de build sugerido:")
         print(f"  {build_cmd.get('description', '')}")
         print(f"  Comando: {' '.join(build_cmd.get('cmd', []))}")
 
@@ -334,7 +343,8 @@ def compile_file(args):
         output_path=args.output,
         extra_args=extra_args,
         output_type=output_type,
-        release_mode=args.release
+        release_mode=args.release,
+        target=args.target
     )
 
     # 4. Mostrar resultados
@@ -359,6 +369,23 @@ def package_file(args):
         sys.exit(1)
 
     detector = CompilerDetector()
+
+    #Verificar si el target es nativo
+    if args.target and args.target != 'native':
+        # Detectar si es Python con PyInstaller
+        if file_path.endswith('.py'):
+            # Buscar PyOxidizer
+            detector = CompilerDetector()
+            tools = detector.get_all_tools()
+            pyoxidizer = next((t for t in tools if t.get('name').lower() == 'PyOxidizer'.lower()), None)
+
+            if pyoxidizer and tool.get('name') != 'PyOxidizer':
+                print(f"🌍 Usando PyOxidizer para {args.target}.")
+                tool = pyoxidizer
+            elif not pyoxidizer:
+                print(f"⚠️  PyInstaller no soporta cross-compilation a {args.target}. PyOxidizer no está instalado.", file=sys.stderr)
+                print(f"⚠️  Continuando con plataforma nativa.", file=sys.stderr)
+                args.target = 'native'
 
     # 1. Seleccionar herramienta de empaquetado
     if args.tool:
@@ -387,7 +414,8 @@ def package_file(args):
         file_path=file_path,
         tool=tool,
         output_path=args.output,
-        extra_args=extra_args
+        extra_args=extra_args,
+        target=args.target
     )
 
     # 4. Mostrar resultados
@@ -403,6 +431,29 @@ def package_file(args):
         print(f"❌ Empaquetado falló con código {result.get('returncode', -1)}.", file=sys.stderr)
         sys.exit(1)
 
+def build_project(args):
+    """Compila un proyecto multi-lenguaje."""
+    directory = args.directory
+    if not os.path.isdir(directory):
+        print(f"Error: '{directory}' no existe.", file=sys.stderr)
+        sys.exit(1)
+
+    # Analizar proyecto
+    from .proyect_editor.project_analyzer import ProjectAnalyzer
+    analyzer = ProjectAnalyzer(directory, use_ai=False)
+    project_info = analyzer.analyze()
+
+    # Crear orquestador
+    from .build_orchestrator import BuildOrchestrator
+    orchestrator = BuildOrchestrator(directory)
+    orchestrator.create_pipeline_from_rules(project_info)
+
+    print("📦 Construyendo proyecto multi-lenguaje...")
+    if orchestrator.run():
+        print("✅ Construcción completada exitosamente.")
+    else:
+        print("❌ Construcción falló.", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

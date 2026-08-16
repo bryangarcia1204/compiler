@@ -77,7 +77,8 @@ class TestIntegrationCompilation(unittest.TestCase):
                     output_path=output_file,
                     extra_args=[],
                     output_type='exe',
-                    release_mode=False
+                    release_mode=False,
+                    target="native"
                 )
             except FileNotFoundError as e:
                 self.skipTest(f"Herramienta '{command}' no disponible: {e}")
@@ -127,13 +128,12 @@ class TestIntegrationCompilation(unittest.TestCase):
             tool = next((t for t in self.available_tools if t.get('name', '').lower() == 'python'), None)
             if not tool:
                 self.skipTest("Python no disponible")
-            result = self.engine.compile(
+            result = self.engine.package(
                 file_path=str(file_path),
                 tool=tool,
                 output_path=None,
                 extra_args=[],
-                output_type=None,
-                release_mode=False
+                target='native'
             )
             self.assertTrue(result['success'], f"Ejecución falló: {result.get('stderr', '')}")
             self.assertIn('Hello, Python!', result.get('stdout', ''))

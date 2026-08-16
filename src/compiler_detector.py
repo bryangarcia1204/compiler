@@ -1,5 +1,6 @@
 # compiler_detector.py
 import os
+import json
 import platform
 import shutil
 import subprocess
@@ -201,6 +202,74 @@ class CompilerDetector:
                 if any(os.path.exists(p) for p in vc_paths):
                     tools.append({'name': 'MSVC', 'command': 'cl', 'version': 'Visual Studio 2022', 'extensions': ['.c', '.cpp', '.cc', '.cxx'], 'type': 'compiler'})
 
+            # 10. PyOxidizer
+            if shutil.which('pyoxidizer'):
+                version = _get_version('pyoxidizer', ['--version'])
+                tools.append({
+                    'name': 'PyOxidizer',
+                    'command': 'pyoxidizer',
+                    'version': version,
+                    'extensions': ['.py'],
+                    'type': 'packager'
+                })
+
+            # 11. electron-builder (Node.js empaquetador multi-target)
+            if shutil.which('electron-builder') or shutil.which('npx'):
+                # Verificar si existe package.json con electron-builder configurado
+                try:
+                    # Buscar package.json en el directorio actual o superiores
+                    package_json_path = None
+                    search_dir = os.getcwd()
+                    for root, dirs, files in os.walk(search_dir):
+                        if 'package.json' in files:
+                            package_json_path = os.path.join(root, 'package.json')
+                            break
+
+                    if package_json_path:
+                        with open(package_json_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            dev_deps = data.get('devDependencies', {})
+                            deps = data.get('dependencies', {})
+                            all_deps = {**dev_deps, **deps}
+                            # Verificar si electron-builder está en dependencias
+                            if 'electron-builder' in all_deps or 'electron-packager' in all_deps:
+                                version = all_deps.get('electron-builder', '')
+                                if not version:
+                                    version = all_deps.get('electron-packager', '')
+                                tools.append({
+                                    'name': 'electron-builder',
+                                    'command': 'npx electron-builder',
+                                    'version': version,
+                                    'extensions': ['.js', '.ts', '.jsx', '.tsx', '.html', '.json'],
+                                    'type': 'packager'
+                                })
+                except Exception as e:
+                    log.debug(f"[CompilerDetector] Error detectando electron-builder: {e}")
+
+                # Si no se encontró en package.json, pero está instalado globalmente
+                if not any(t['name'] == 'electron-builder' for t in tools):
+                    version = _get_version('electron-builder', ['--version'])
+                    if version:
+                        tools.append({
+                            'name': 'electron-builder',
+                            'command': 'npx electron-builder',
+                            'version': version,
+                            'extensions': ['.js', '.ts', '.jsx', '.tsx', '.html', '.json'],
+                            'type': 'packager'
+                        })
+
+            # 12. electron-packager (alternativa simple)
+            if shutil.which('npx') or shutil.which('electron-packager'):
+                version = _get_version('electron-packager', ['--version'])
+                if version:
+                    tools.append({
+                        'name': 'electron-packager',
+                        'command': 'npx @electron/packager',
+                        'version': version,
+                        'extensions': ['.js', '.ts', '.jsx', '.tsx'],
+                        'type': 'packager'
+                    })
+                    
             CompilerDetector._cached_tools = tools
             CompilerDetector._detecting = False
             return tools

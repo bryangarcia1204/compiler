@@ -254,6 +254,9 @@ class ProjectAnalyzer:
         # 7. Generar sugerencias
         self._generate_suggestions()
 
+        # 8. Detectar necesidades de build (plan)
+        self._detect_build_needs()
+
         # 8. Usar IA si está disponible
         if self.use_ai and self.ai_client and self.ai_client.is_available():
             self._get_ai_suggestions()
@@ -1294,7 +1297,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
                 if key == 'intent_confidence':
                     try:
                         result[key] = float(value)
-                    except:
+                    except Exception:
                         result[key] = 0.5
                 else:
                     result[key] = value
@@ -1374,3 +1377,192 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
 
         lines.append("=" * 70)
         return "\n".join(lines)
+
+    def _detect_cross_language_dependencies(self):
+        """
+        Detecta dependencias entre lenguajes de forma avanzada.
+        
+        Casos detectados:
+        1. Python importa módulos C++ (nombres desde setup.py o archivos .cpp)
+        2. Python y JS se comunican vía APIs HTTP/WebSocket
+        3. JS ejecuta Python via child_process
+        """
+        dependencies = {
+            'python_imports_cpp': [],      # (module_name, python_file, cpp_file)
+            'js_python_http': [],          # (js_file, python_file, endpoint)
+            'js_python_childprocess': [],  # (js_file, python_script)
+            'python_js_http': [],          # (python_file, js_file, endpoint)
+        }
+
+        # ── 1. Detectar módulos C++ exportados ──
+        cpp_modules = self._detect_cpp_modules()
+
+        # ── 2. Buscar imports en Python ──
+        for entry in self.summary['source_files']:
+            if entry['language'] == 'python':
+                content = entry.get('content', '')
+                # Buscar imports de módulos que coincidan con cpp_modules
+                import re
+                imports = re.findall(r'^(?:from|import)\s+([\w.]+)', content, re.MULTILINE)
+                for imp in imports:
+                    module_name = imp.split('.')[0]
+                    if module_name in cpp_modules:
+                        dependencies['python_imports_cpp'].append({
+                            'module': module_name,
+                            'python_file': entry['rel_path'],
+                            'cpp_file': cpp_modules[module_name]
+                        })
+
+                # ── 3. Detectar si Python expone una API HTTP ──
+                if 'Flask' in content or 'FastAPI' in content or 'Django' in content:
+                    endpoints = self._extract_http_endpoints(content)
+                    if endpoints:
+                        # Guardar para luego buscar coincidencias en JS
+                        self.summary['python_http_endpoints'] = endpoints
+
+                # ── 4. Detectar si Python usa child_process o subprocess ──
+                if 'subprocess' in content or 'os.system' in content:
+                    dependencies['python_executes_external'].append(entry['rel_path'])
+
+        # ── 5. Detectar en JavaScript ──
+        for entry in self.summary['source_files']:
+            if entry['language'] in ('javascript', 'typescript'):
+                content = entry.get('content', '')
+
+                # ── 6. Detectar child_process en JS ──
+                if 'child_process' in content or 'spawn' in content or 'exec' in content:
+                    # Buscar qué archivo Python se ejecuta
+                    matches = re.findall(r'["\'](.*\.py)["\']', content)
+                    for py_file in matches:
+                        dependencies['js_python_childprocess'].append({
+                            'js_file': entry['rel_path'],
+                            'python_script': py_file
+                        })
+
+                # ── 7. Detectar peticiones HTTP a endpoints Python ──
+                if hasattr(self.summary, 'python_http_endpoints'):
+                    for endpoint in self.summary['python_http_endpoints']:
+                        if endpoint in content:
+                            dependencies['js_python_http'].append({
+                                'js_file': entry['rel_path'],
+                                'python_file': self._find_python_file_for_endpoint(endpoint),
+                                'endpoint': endpoint
+                            })
+
+        self.summary['cross_dependencies'] = dependencies
+
+    def _detect_cpp_modules(self) -> Dict[str, str]:
+        """
+        Detecta módulos C++ que serán exportados a Python.
+        Busca en setup.py, pyproject.toml y archivos .cpp con pybind11.
+        """
+        modules = {}
+
+        # Buscar en setup.py
+        for entry in self.summary['config_files']:
+            if entry['name'] == 'setup.py':
+                content = entry.get('content', '')
+                # Buscar Extension(name=...)
+                import re
+                matches = re.findall(r"Extension\s*\(\s*['\"]([^'\"]+)['\"]", content)
+                for match in matches:
+                    module_name = match.split('.')[-1]
+                    # Buscar el archivo .cpp asociado
+                    cpp_file = self._find_cpp_file_for_module(module_name)
+                    modules[module_name] = cpp_file
+
+        # Buscar en pyproject.toml (con scikit-build)
+        for entry in self.summary['config_files']:
+            if entry['name'] == 'pyproject.toml':
+                content = entry.get('content', '')
+                # Buscar módulos definidos en [tool.setuptools.packages]
+                import re
+                matches = re.findall(r'packages\s*=\s*\[([^\]]*)\]', content)
+                for match in matches:
+                    pkgs = re.findall(r'["\']([^"\']+)["\']', match)
+                    for pkg in pkgs:
+                        # Buscar .cpp asociado
+                        cpp_file = self._find_cpp_file_for_module(pkg)
+                        modules[pkg] = cpp_file
+
+        # Buscar en archivos .cpp con pybind11
+        for entry in self.summary['source_files']:
+            if entry['language'] in ('c', 'cpp'):
+                content = entry.get('content', '')
+                if 'pybind11' in content:
+                    # Buscar PYBIND11_MODULE(módulo, m)
+                    import re
+                    match = re.search(r'PYBIND11_MODULE\s*\(\s*([\w_]+)', content)
+                    if match:
+                        module_name = match.group(1)
+                        modules[module_name] = entry['rel_path']
+
+        return modules
+
+    def _find_cpp_file_for_module(self, module_name: str) -> Optional[str]:
+        """Busca un archivo .cpp que contenga el módulo."""
+        for entry in self.summary['source_files']:
+            if entry['language'] in ('c', 'cpp'):
+                if module_name in entry.get('rel_path', ''):
+                    return entry['rel_path']
+        return None
+
+    def _extract_http_endpoints(self, content: str) -> List[str]:
+        """Extrae endpoints HTTP de un archivo Python (Flask/FastAPI)."""
+        endpoints = []
+        import re
+
+        # Flask
+        matches = re.findall(r'@app\.route\s*\(\s*["\']([^"\']+)["\']', content)
+        endpoints.extend(matches)
+
+        # FastAPI
+        matches = re.findall(r'@app\.(?:get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']', content)
+        endpoints.extend(matches)
+
+        # Django urls (simplificado)
+        matches = re.findall(r"path\s*\(\s*['\"]([^'\"]+)['\"]", content)
+        endpoints.extend(matches)
+
+        return endpoints
+
+    def _find_python_file_for_endpoint(self, endpoint: str) -> Optional[str]:
+        """Busca qué archivo Python contiene un endpoint específico."""
+        for entry in self.summary['source_files']:
+            if entry['language'] == 'python':
+                content = entry.get('content', '')
+                if endpoint in content:
+                    return entry['rel_path']
+        return None
+
+    def _detect_build_needs(self):
+        """
+        Detecta qué artefactos necesita y produce el proyecto.
+        Usa las reglas de build para inferir el orden y las dependencias.
+        """
+        from ..build_rules import BuildRules, BuildArtifact
+
+        languages = list(self.summary['languages'].keys())
+        rules = BuildRules.build_order(languages)
+
+        self.summary['build_order'] = rules
+        self.summary['build_plan'] = []
+
+        for rule_name in rules:
+            rule = BuildRules.get_rule(rule_name)
+            if rule:
+                # Verificar si los archivos fuente coinciden
+                has_inputs = any(
+                    any(f.get('path', '').endswith(ext) or f.get('rel_path', '').endswith(ext) or f.get('name', '').endswith(ext) 
+                        for ext in rule.input_extensions)
+                    for f in self.summary['files']
+                )
+                if has_inputs or rule.produces:
+                    self.summary['build_plan'].append({
+                        'name': rule.name,
+                        'language': rule.language,
+                        'description': rule.description,
+                        'produces': [a.value for a in rule.produces],
+                        'requires': [a.value for a in rule.requires],
+                        'build_command': rule.build_command,
+                    })

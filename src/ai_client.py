@@ -55,6 +55,12 @@ class AIClient:
             "api_key_env": "GROQ_API_KEY",
             "local": False,
         },
+        "huggingface": {
+            "base_url": "https://router.huggingface.co/v1",
+            "default_model": "deepseek-ai/DeepSeek-V4-Pro-0813:fireworks-ai",
+            "api_key_env": "HIGGING_API_KEY",
+            "local": False,
+        },
         "tinyllama": {
             "base_url": None,
             "default_model": "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
@@ -96,7 +102,7 @@ class AIClient:
         # Configuración específica para TinyLlama
         self.model_path = model_path or os.getenv(
             "TINYLLAMA_PATH",
-            os.path.join(os.path.dirname(__file__), '..', 'models', 'tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf')
+            os.path.join(os.path.dirname(__file__), 'module', 'qwen2.5-coder-1.5b-instruct-q3_k_m.gguf')
         )
         self.n_ctx = n_ctx
         self.n_threads = n_threads
@@ -139,20 +145,26 @@ class AIClient:
             return
 
         if not os.path.exists(self.model_path):
-            log.error(f"[AIClient] Modelo TinyLlama no encontrado en: {self.model_path}")
+            log.error(f"[AIClient] Modelo Qwen no encontrado en: {self.model_path}")
             log.info("[AIClient] Descarga el modelo desde: https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF")
             return
 
         try:
             self.client = Llama(
                 model_path=self.model_path,
-                n_ctx=self.n_ctx,
-                n_threads=self.n_threads,
-                verbose=self.verbose
+                n_ctx=8192,              # Contexto máximo para archivos grandes
+                n_threads=4,
+                verbose=False,
+                seed=42,                 # Resultados deterministas
+                repeat_penalty=1.1,      # Evita repeticiones
+                temperature=0.1,         # Baja para código preciso
+                top_p=0.9,
+                top_k=40,
+                stop=["</s>", "User:", "Assistant:"]
             )
-            log.info(f"[AIClient] TinyLlama cargado correctamente desde: {self.model_path}")
+            log.info(f"[AIClient] Qwen cargado correctamente desde: {self.model_path}")
         except Exception as e:
-            log.error(f"[AIClient] Error cargando TinyLlama: {e}")
+            log.error(f"[AIClient] Error cargando Qwen: {e}")
 
     def chat(
         self,

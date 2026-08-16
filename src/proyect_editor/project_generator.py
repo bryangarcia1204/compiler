@@ -12,6 +12,8 @@ from typing import Dict, List, Optional, Any, Counter
 from .template_loader import TemplateLoader
 from ..ai_client import AIClient
 from .. import logger
+from ..compilers.registry import CompilerRegistry
+from ..target_manager import TargetManager
 
 log = logger.Logger()
 
@@ -57,7 +59,7 @@ class ProjectGenerator:
     # ──────────────────────────────────────────────────────────
     # 1. GENERACIÓN DE ARCHIVOS (PUNTO DE ENTRADA)
     # ──────────────────────────────────────────────────────────
-    def generate_config_files(self, project_info: Dict, custom_prompt: str = "") -> Dict[str, str]:
+    def generate_config_files(self, project_info: Dict, custom_prompt: str = "", targets:list[str]= ['native']) -> Dict[str, str]:
         """
         Genera archivos de configuración usando plantillas o IA.
 
@@ -72,77 +74,45 @@ class ProjectGenerator:
         language = project_info.get('main_language') or project_info.get('language') or project_info.get('type', 'python')
         project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
         project_type = project_info.get('project_type', 'application')
-        binary_target = project_info.get('binary_target')
-        files = project_info.get('files', [])
-        source_files = project_info.get('source_files', [])
-        dependencies = list(project_info.get('dependencies', set()))
 
         # Usar IA si está disponible y hay prompt personalizado
         if self.use_ai and self.ai_client:
             log.info(f"[ProjectGenerator] Generando con IA para {language} (proyecto: {project_name})")
 
-            # Construir contexto para la IA
-            context = self._build_ai_context(project_info, language, project_name, project_type, binary_target, files, dependencies)
-
             # Generar con IA
-            result = self._generate_with_ai(context, language, custom_prompt)
+            result = self._generate_with_ai(language, custom_prompt, project_info, targets)
             log.debug(f"[ProjectGenerator] Resultado de la IA: {result}")
             return result
 
-        # Si no hay IA, usar plantillas
-        log.info(f"[ProjectGenerator] Generando con plantillas para {language}")
-        result = self._generate_with_templates(language, project_name, project_type, project_info)
+        # 2. Archivos adicionales multi-target (plugins)
+        if targets is None:
+            targets = ['native']
 
-        # Si no hay plantillas para ese lenguaje, usar fallback
-        if not result:
-            result = self._generate_fallback_templates(language, project_name, project_type, project_info)
+        # Obtener todas las estrategias registradas (builtins + plugins)
+        all_strategies = CompilerRegistry.get_all()
 
-        return result
+        for target in targets:
+            for strategy_class in all_strategies.values():
+                strategy = strategy_class()
+                # Verificar si soporta las extensiones del proyecto
+                ext = '.' + language if language else ''
+                if ext in strategy.supported_extensions:
+                    if hasattr(strategy, 'generate_config_files'):
+                        return strategy.generate_config_files(project_info, target)
+                    
+        return self._generate_with_templates(language, project_name, project_type, project_info)
 
-    # ──────────────────────────────────────────────────────────
-    # 2. GENERACIÓN CON IA
-    # ──────────────────────────────────────────────────────────
-    def _build_ai_context(self, project_info: Dict, language: str, project_name: str, project_type: str, binary_target: str, files: List, dependencies: List) -> str:
-        """Construye el contexto para la IA."""
-        # Obtener ejemplos de plantillas existentes
-        existing_templates = self.template_loader.get_all_templates_for_language(language)
-        template_examples = "\n".join(
-            f"--- {name} ---\n{content[:300]}...\n--- FIN ---"
-            for name, content in list(existing_templates.items())[:3]
-        )
 
-        # Lista de archivos principales
-        main_files = project_info.get('main_files', [])
-        main_file_list = '\n'.join(f'  - {os.path.basename(f)}' for f in main_files[:5])
+         
 
-        return f"""
-**Proyecto:** {project_name}
-**Lenguaje principal:** {language}
-**Tipo de proyecto:** {project_type}
-**Target binario:** {binary_target or 'Ninguno'} (ej: pyd, so, dll, exe)
-
-**Archivos fuente:** {len(files)}
-**Archivos principales:**
-{main_file_list or '  - No detectados'}
-
-**Dependencias detectadas:**
-{chr(10).join(f'  - {dep}' for dep in dependencies[:10]) if dependencies else '  - Ninguna'}
-
-**Plantillas existentes para {language}:**
-{chr(10).join(f'  - {name}' for name in existing_templates.keys()) if existing_templates else '  - No hay plantillas predefinidas'}
-
-**Ejemplos de formato:**
-{template_examples if template_examples else '  - (No hay ejemplos disponibles)'}
-"""
-
-    def _generate_with_ai(self, context: str, language: str, custom_prompt: str = None, project_info: Dict = None) -> Dict[str, str]:
+    def _generate_with_ai(self, language: str, custom_prompt: str = None, project_info: Dict = None, targets:list[str]= ['native']) -> Dict[str, str]:
         """Genera archivos usando el AIClient. Recibe TODO el project_info."""
         if not self.ai_client:
             log.warning("[ProjectGenerator] AIClient no disponible, usando plantillas")
             return {}
 
         # Preparar el resumen completo para la IA
-        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=False) if project_info else {}
+        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=True) if project_info else {}
 
         # Construir prompt con datos completos
         prompt = f"""
@@ -175,7 +145,7 @@ class ProjectGenerator:
                     {"role": "system", "content": "Eres un experto en generación de archivos de configuración. Responde con el formato solicitado."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
+                temperature=0.2,
                 max_tokens=2000,
                 **kwargs
             )
@@ -184,12 +154,24 @@ class ProjectGenerator:
                 log.debug(f"[ProjectGenerator] Respuesta IA (primeros 300 chars): {response[:300]}...")
                 return self._parse_ai_response(response, language)
 
-            log.warning("[ProjectGenerator] No se recibió respuesta de IA")
-            return self._generate_with_templates(language, "", "", {})
-
+            if targets is None:
+                targets = ['native']
+    
+            # Obtener todas las estrategias registradas (builtins + plugins)
+            all_strategies = CompilerRegistry.get_all()
+    
+            for target in targets:
+                for strategy_class in all_strategies.values():
+                    strategy = strategy_class()
+                    # Verificar si soporta las extensiones del proyecto
+                    ext = '.' + language if language else ''
+                    if ext in strategy.supported_extensions:
+                        if hasattr(strategy, 'generate_config_files'):
+                            return strategy.generate_config_files(project_info, target)
+                            
         except Exception as e:
             log.error(f"[ProjectGenerator] Error con IA: {e}")
-            return self._generate_with_templates(language, "", "", {})
+            return self._generate_with_templates(language, "", "", project_info)
 
     def _parse_ai_response(self, content: str, language: str) -> Dict[str, str]:
         """Parsea la respuesta de la IA en un diccionario de archivos."""
@@ -202,7 +184,7 @@ class ProjectGenerator:
             result[filename] = file_content.strip()
 
         if not result:
-            log.warning("[ProjectGenerator] No se pudo parsear respuesta de IA, usando plantillas")
+            log.warning("[ProjectGenerator] No se pudo parsear respuesta de IA")
             return self._generate_with_templates(language, "", "", {})
 
         return result
@@ -215,7 +197,6 @@ class ProjectGenerator:
         result = self.template_loader.generate_with_templates(
             language=language,
             project_name=project_name,
-            custom_prompt=""
         )
 
         # Si no hay plantillas para ese lenguaje, usar fallback específico
@@ -549,7 +530,7 @@ Thumbs.db
             return {'files': existing_files, 'build_command': None}
 
         # Preparar una copia de project_info sin contenido de archivos (ya tenemos existing_files)
-        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=False)
+        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=True)
 
         # Preparar archivos existentes con contenido completo
         existing_files_str = "\n".join([
@@ -557,37 +538,37 @@ Thumbs.db
             for name, content in list(existing_files.items())[:5]
         ])
 
-        prompt = f"""
-Eres un experto en desarrollo de software. Revisa TODOS los datos del proyecto y mejora los archivos de configuración.
+        
+        prompt = f"""Eres un experto en desarrollo de software. Revisa TODOS los datos del proyecto y mejora los archivos de configuración.
 
-DATOS COMPLETOS DEL PROYECTO (en JSON):
-{json.dumps(summary_for_ai, indent=2, default=str)}
+        DATOS COMPLETOS DEL PROYECTO (en JSON):
+        {json.dumps(summary_for_ai, indent=2, default=str)}
 
-ARCHIVOS DE CONFIGURACIÓN EXISTENTES (a mejorar/completar):
-{existing_files_str if existing_files_str else 'No hay archivos existentes.'}
+        ARCHIVOS DE CONFIGURACIÓN EXISTENTES (a mejorar/completar):
+        {existing_files_str if existing_files_str else 'No hay archivos existentes.'}
 
-INSTRUCCIONES ADICIONALES:
-{custom_prompt if custom_prompt else 'Completa y mejora los archivos de configuración según las mejores prácticas.'}
+        INSTRUCCIONES ADICIONALES:
+        {custom_prompt if custom_prompt else 'Completa y mejora los archivos de configuración según las mejores prácticas.'}
 
-REQUERIMIENTOS:
-1. Mejora los archivos existentes con comentarios y estructura adecuada.
-2. Si falta algún archivo importante, créalo.
-3. Asegúrate de que los archivos sean funcionales para este proyecto.
+        REQUERIMIENTOS:
+        1. Mejora los archivos existentes con comentarios y estructura adecuada.
+        2. Si falta algún archivo importante, créalo.
+        3. Asegúrate de que los archivos sean funcionales para este proyecto.
 
-RESPONDE EN FORMATO JSON:
-{{
-    "files": {{
-        "nombre_archivo": "contenido completo",
-        "otro_archivo": "contenido completo"
-    }},
-    "build_command": {{
-        "cmd": ["comando", "arg1", "arg2"],
-        "cwd": "directorio_opcional",
-        "timeout": 300,
-        "description": "Descripción del comando de build"
-    }}
-}}
-"""
+        RESPONDE EN FORMATO JSON:
+        {{
+            "files": {{
+                "nombre_archivo": "contenido completo",
+                "otro_archivo": "contenido completo"
+            }},
+            "build_command": {{
+                "cmd": ["comando", "arg1", "arg2"],
+                "cwd": "directorio_opcional",
+                "timeout": 300,
+                "description": "Descripción del comando de build"
+            }}
+        }}
+        """
 
         try:
             kwargs = {}

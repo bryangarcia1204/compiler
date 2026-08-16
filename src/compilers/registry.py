@@ -1,6 +1,5 @@
 import importlib
 import pkgutil
-import os
 from typing import Dict, Optional, Type
 
 from .base import CompilerStrategy
@@ -27,6 +26,12 @@ class CompilerRegistry:
         if strategy_class:
             return strategy_class()
         return None
+    
+    @classmethod
+    def get_all(cls) -> Dict[str, type[CompilerStrategy]]:
+        cls._load_all()
+        strategy_class = cls._strategies
+        return strategy_class
 
     @classmethod
     def _load_all(cls) -> None:
@@ -36,20 +41,22 @@ class CompilerRegistry:
 
         # Cargar estrategias integradas (builtin)
         try:
-            from . import builtin
-            for module_info in pkgutil.iter_modules(builtin.__path__, prefix='src.compilers.builtin.'):
+            from . import built_in
+            for module_info in pkgutil.iter_modules(built_in.__path__, prefix='src.compilers.builtin.'):
                 module = importlib.import_module(module_info.name)
                 if hasattr(module, 'STRATEGY_CLASS'):
                     cls.register(module.STRATEGY_CLASS)
         except ImportError:
             pass
 
-        # Cargar plugins de la comunidad (directorio plugins/)
-        plugins_dir = os.path.join(os.path.dirname(__file__), 'plugins')
-        if os.path.exists(plugins_dir):
-            for module_info in pkgutil.iter_modules([plugins_dir]):
-                module = importlib.import_module(f'.plugins.{module_info.name}', package='src.compilers')
+        # Cargar plugins (NUEVO)
+        try:
+            from . import plugins
+            for module_info in pkgutil.iter_modules(plugins.__path__, prefix='src.compilers.plugins.'):
+                module = importlib.import_module(module_info.name)
                 if hasattr(module, 'STRATEGY_CLASS'):
                     cls.register(module.STRATEGY_CLASS)
+        except ImportError:
+            pass
 
         cls._loaded = True

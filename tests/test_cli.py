@@ -43,7 +43,8 @@ class TestCLI:
             output='test.exe',
             type='exe',
             release=False,
-            args='-Wall'
+            args='-Wall',
+            target=None
         )
 
         with patch('os.path.isfile', return_value=True), \
@@ -74,7 +75,8 @@ class TestCLI:
             output=None,
             type='exe',
             release=False,
-            args=None
+            args=None,
+            target=None
         )
 
         with patch('os.path.isfile', return_value=True), \
@@ -103,7 +105,8 @@ class TestCLI:
                         output=None,
                         type=None,
                         release=False,
-                        args=None)
+                        args=None,
+                        target=None)
         with patch('os.path.isfile', return_value=False):
             with patch('sys.exit') as mock_exit:
                 compile_file(args)
@@ -115,7 +118,8 @@ class TestCLI:
             file='script.py',
             tool='pyinstaller',
             output='dist/app',
-            args=None
+            args=None,
+            target=None
         )
 
         with patch('os.path.isfile', return_value=True), \
@@ -139,7 +143,7 @@ class TestCLI:
 
     def test_package_file_no_packager(self):
         """Prueba cuando no hay empaquetador."""
-        args = Namespace(file='script.py', tool=None, output=None, args=None)
+        args = Namespace(file='script.py', tool=None, output=None, args=None, target=None)
 
         with patch('os.path.isfile', return_value=True), \
             patch('src.cli.CompilerDetector') as mock_detector, \

@@ -13,17 +13,19 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QComboBox, QTextEdit, QTabWidget, QCheckBox,
     QGroupBox, QFileDialog, QMessageBox, QWidget,
-    QScrollArea, QMainWindow, QSplitter
+    QScrollArea, QMainWindow, QListWidget, QListWidgetItem
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from .editor.editor_widget import CodeEditor
 from PyQt5.QtGui import QFont
 
 from .project_generator import ProjectGenerator
 from .project_analyzer import ProjectAnalyzer
 from ..compilation_engine import CompilationEngine
 from ..compiler_detector import CompilerDetector
-from ..config_manager import load_project_state, save_project_state, clear_project_state
+from ..config_manager import load_project_state, save_project_state
 from .output_types_analyzer import OUTPUT_TYPE_MAP_ANALIZER
+from ..target_manager import TargetManager
 from .. import logger
 
 log = logger.Logger()
@@ -34,15 +36,16 @@ class GenerateWorker(QThread):
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, generator, project_info, custom_prompt):
+    def __init__(self, generator, project_info, custom_prompt, selected_targets):
         super().__init__()
         self.generator = generator
         self.project_info = project_info
         self.custom_prompt = custom_prompt
+        self.selected_targets = selected_targets or ['native']
 
     def run(self):
         try:
-            result = self.generator.generate_config_files(self.project_info, self.custom_prompt)
+            result = self.generator.generate_config_files(self.project_info, self.custom_prompt, self.selected_targets)
             self.finished.emit(result)
         except Exception as e:
             self.error.emit(str(e))
@@ -95,6 +98,41 @@ class ProjectGeneratorDialog(QMainWindow):
 
         # Inicializar UI
         self.init_ui()
+        # Después de self.init_ui(), agregar:
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #2b2b2b;
+                color: #f0f0f0;
+            }
+            QLabel {
+                color: #f0f0f0;
+                background-color: transparent;
+            }
+            QLineEdit {
+                background-color: #3c3c3c;
+                color: #f0f0f0;
+                border: 1px solid #5a5a5a;
+                border-radius: 3px;
+                padding: 4px;
+            }
+            QPushButton {
+                background-color: #3c3c3c;
+                border: 1px solid #5a5a5a;
+                border-radius: 4px;
+                padding: 6px 12px;
+                color: #f0f0f0;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+            QPushButton:pressed {
+                background-color: #2a2a2a;
+            }
+            QPushButton:disabled {
+                background-color: #2a2a2a;
+                color: #6a6a6a;
+            }
+        """)
         self.load_config()
 
     def init_ui(self):
@@ -140,8 +178,27 @@ class ProjectGeneratorDialog(QMainWindow):
         self.analyze_btn.setEnabled(False)
         info_layout.addWidget(self.analyze_btn)
 
+        self.build_all_btn = QPushButton("Construir todo (multi-lenguaje)")
+        self.build_all_btn.clicked.connect(self.build_all_projects)
+        self.build_all_btn.setEnabled(False)
+        info_layout.addWidget(self.build_all_btn)
+
         info_group.setLayout(info_layout)
         main_layout.addWidget(info_group)
+
+        self.target_list = QListWidget()
+        self.target_list.setSelectionMode(QListWidget.MultiSelection)
+        available_targets = TargetManager.get_available_targets()
+        for t in available_targets:
+            item = QListWidgetItem(t)
+            item.setToolTip(TargetManager.get_target(t).description)
+            self.target_list.addItem(item)
+        # Seleccionar 'native' por defecto
+        for i in range(self.target_list.count()):
+            if self.target_list.item(i).text() == 'native':
+                self.target_list.item(i).setSelected(True)
+        target_layout = QHBoxLayout()
+        target_layout.addWidget(self.target_list)
 
         # ── OPCIONES DE GENERACIÓN ──
         options_group = QGroupBox("Opciones de generación")
@@ -155,7 +212,7 @@ class ProjectGeneratorDialog(QMainWindow):
         # Proveedor y modelo
         provider_layout = QHBoxLayout()
         self.provider_combo = QComboBox()
-        self.provider_combo.addItems(["Plataformia", "DeepSeek", "OpenAI", "Groq", "TinyLlama"])
+        self.provider_combo.addItems(["Plataformia", "DeepSeek", "OpenAI", "Groq", "HuggingFace", "Qwen-Code"])
         self.provider_combo.setCurrentText("Plataformia")
         self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
         provider_layout.addWidget(QLabel("Proveedor:"))
@@ -178,6 +235,9 @@ class ProjectGeneratorDialog(QMainWindow):
         api_layout.addWidget(self.api_edit, 1)
         options_layout.addLayout(api_layout)
 
+        options_layout.addLayout(target_layout)
+        
+
         # Prompt personalizado
         options_layout.addWidget(QLabel("Prompt personalizado (opcional):"))
         self.prompt_edit = QTextEdit()
@@ -185,6 +245,7 @@ class ProjectGeneratorDialog(QMainWindow):
         self.prompt_edit.setMaximumHeight(60)
         self.prompt_edit.setEnabled(False)
         options_layout.addWidget(self.prompt_edit)
+        
 
         # Botones de acción
         action_layout = QHBoxLayout()
@@ -254,7 +315,8 @@ class ProjectGeneratorDialog(QMainWindow):
             "DeepSeek": "deepseek-coder",
             "OpenAI": "gpt-4o-mini",
             "Groq": "llama3-70b-8192",
-            "TinyLlama": "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+            "HuggingFace": "deepseek-ai/DeepSeek-V4-Pro-0813:fireworks-ai",
+            "Qwen-Code": "qwen2.5-coder-1.5b-instruct-q3_k_m.gguf"
         }
         self.model_edit.setText(default_models.get(provider, ""))
 
@@ -316,6 +378,29 @@ class ProjectGeneratorDialog(QMainWindow):
                     QTimer.singleShot(100, lambda: self.info_label.setText(self.analyzer.get_summary() if self.analyzer else "Proyecto cargado"))
                     self.generate_btn.setEnabled(True)
                     self.enhance_btn.setEnabled(True)
+
+    def build_all_projects(self):
+        """Ejecuta el pipeline de construcción multi-lenguaje."""
+        from ..build_orchestrator import BuildOrchestrator
+
+        # Guardar archivos primero
+        self.save_files()
+
+        # Crear orquestador
+        orchestrator = BuildOrchestrator(self.project_dir)
+        orchestrator.create_pipeline_from_rules(self.project_info)
+
+        self.build_all_btn.setEnabled(False)
+        self.info_label.setText("Construyendo todo el proyecto...")
+
+        try:
+            if orchestrator.run():
+                QMessageBox.information(self, "Éxito", "Proyecto construido correctamente.")
+            else:
+                QMessageBox.critical(self, "Error", "Falló la construcción.")
+        finally:
+            self.build_all_btn.setEnabled(True)
+            self.info_label.setText("Listo")
 
     # ──────────────────────────────────────────────────────────
     # 1. ANÁLISIS DEL PROYECTO
@@ -382,6 +467,7 @@ class ProjectGeneratorDialog(QMainWindow):
             if reply == QMessageBox.Yes:
                 self.generate_files()
 
+        self.build_all_btn.setEnabled(True)
         self.generate_btn.setEnabled(True)
         self.enhance_btn.setEnabled(True)
         self.analyze_btn.setEnabled(True)
@@ -406,6 +492,8 @@ class ProjectGeneratorDialog(QMainWindow):
             QMessageBox.warning(self, "Error", "Primero analiza el proyecto.")
             return
 
+
+        selected_targets = [item.text() for item in self.target_list.selectedItems()]
         # Configurar generador
         self.generator = ProjectGenerator(
             use_ai=self.ai_checkbox.isChecked(),
@@ -421,7 +509,7 @@ class ProjectGeneratorDialog(QMainWindow):
         self.info_label.setText("Generando archivos...")
 
         # Crear worker
-        self.worker = GenerateWorker(self.generator, self.project_info, prompt)
+        self.worker = GenerateWorker(self.generator, self.project_info, prompt, selected_targets)
         self.worker.finished.connect(self.on_generation_finished)
         self.worker.error.connect(self.on_generation_error)
         self.worker.start()
@@ -474,7 +562,7 @@ class ProjectGeneratorDialog(QMainWindow):
             editor = self.file_tabs.widget(i)
             filename = self.file_tabs.tabText(i).lstrip("*")
             if editor:
-                current_files[filename] = editor.toPlainText()
+                current_files[filename] = editor.text().strip()
 
         prompt = self.prompt_edit.toPlainText().strip()
 
@@ -541,13 +629,9 @@ class ProjectGeneratorDialog(QMainWindow):
     # ──────────────────────────────────────────────────────────
 
     def add_file_tab(self, filename: str, content: str):
-        """Añade un nuevo tab con el contenido del archivo."""
-        editor = QTextEdit()
-        editor.setFontFamily("Consolas")
-        editor.setFontPointSize(10)
-        editor.setTabStopDistance(4 * 20)
-        editor.setPlainText(content)
-        editor.textChanged.connect(lambda: self.on_file_edited(filename, editor.toPlainText()))
+        """Añade un nuevo tab con el contenido del archivo usando CodeEditor."""
+        editor = CodeEditor(self, filename, content)
+        editor.textChanged.connect(lambda: self.on_file_edited(filename, editor.get_text()))
 
         self.file_tabs.addTab(editor, filename)
 
@@ -587,7 +671,7 @@ class ProjectGeneratorDialog(QMainWindow):
             editor = self.file_tabs.widget(i)
             filename = self.file_tabs.tabText(i).lstrip("*")
             if editor and filename in self.edited_files:
-                self.edited_files[filename] = editor.toPlainText()
+                self.edited_files[filename] = editor.get_text()
 
         # Guardar archivos
         saved = 0

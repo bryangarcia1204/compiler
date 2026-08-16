@@ -28,7 +28,7 @@ class CompilationEngine:
         self.process = None
         self.output_queue = queue.Queue()
 
-    def build_package_command(self, file_path, tool, output_path=None, extra_args=None):
+    def build_package_command(self, file_path, tool, output_path=None, extra_args=None, target = "native"):
         """Construye (cmd, cwd, post_actions) para empaquetar."""
         extra_args = extra_args or []
         name = (tool.get('name') or '').lower()
@@ -36,17 +36,17 @@ class CompilationEngine:
         # Delegar en estrategia de empaquetado si existe
         strategy = CompilerRegistry.get(name)
         if strategy and hasattr(strategy, 'build_package_command'):
-            return strategy.build_package_command(file_path, output_path, extra_args)
+            return strategy.build_package_command(file_path, output_path, extra_args, target)
 
         # Fallback: usar la estrategia de compilación con output_type='exe'
         if strategy:
-            return strategy.build_command(file_path, output_path, extra_args, 'exe', False)
+            return strategy.build_command(file_path, output_path, extra_args, 'exe', False, target)
 
         # Si no hay estrategia, lanzar error (como original)
         raise ValueError(f"Herramienta de empaquetado no soportada: {tool.get('name')}")
 
     def build_command_for(self, file_path, tool, output_path=None, extra_args=None,
-                          output_type='exe', release_mode=False):
+                          output_type='', release_mode=False, target = 'native'):
         """Construye (cmd, cwd, post_actions) según tool, file_path y output_type."""
         extra_args = extra_args or []
 
@@ -76,7 +76,7 @@ class CompilationEngine:
         strategy = CompilerRegistry.get(name)
         if strategy:
             log.debug(f"[CompilationEngine] Usando estrategia para: {name}")
-            return strategy.build_command(file_path, output_path, extra_args, output_type, release_mode)
+            return strategy.build_command(file_path, output_path, extra_args, output_type, release_mode, target)
 
         # ============================================================
         # 4. FALLBACK GENÉRICO (comportamiento original para compiladores/interpretes)
@@ -132,9 +132,9 @@ class CompilationEngine:
         return None, None, []
 
     def build_compile_command(self, file_path, tool, output_path=None, extra_args=None,
-                              output_type='exe', release_mode=False):
+                              output_type='', release_mode=False, target = 'native'):
         """Alias para build_command_for."""
-        return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode)
+        return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode, target)
 
     def _run_subprocess(self, cmd, cwd=None, timeout=None):
         try:
@@ -202,10 +202,10 @@ class CompilationEngine:
                 log.error(f"Post action failed: {e}")
 
     def compile(self, file_path, tool, output_path=None, extra_args=None,
-                output_type='exe', release_mode=False):
+                output_type='', release_mode=False, target = 'native'):
         """Compila o interpreta un archivo usando la herramienta especificada."""
         cmd, cwd, post_actions = self.build_compile_command(
-            file_path, tool, output_path, extra_args, output_type, release_mode
+            file_path, tool, output_path, extra_args, output_type, release_mode, target
         )
         if not cmd:
             return {
@@ -219,6 +219,8 @@ class CompilationEngine:
         timeout = 300
         if output_type in ('cargo-release', 'wasm', 'apk', 'jar', 'whl'):
             timeout = 600
+
+        log.debug(f"Comando a utilizar: {' '.join(cmd)}")
         returncode, stdout, stderr = self._run_subprocess(cmd, cwd=cwd, timeout=timeout)
 
         if returncode == 0 and post_actions:
@@ -243,9 +245,9 @@ class CompilationEngine:
         }
         return result
 
-    def package(self, file_path, tool, output_path=None, extra_args=None):
+    def package(self, file_path, tool, output_path=None, extra_args=None, target="native"):
         """Empaqueta un script interpretado usando la herramienta especificada."""
-        cmd, cwd, post_actions = self.build_package_command(file_path, tool, output_path, extra_args)
+        cmd, cwd, post_actions = self.build_package_command(file_path, tool, output_path, extra_args, target)
         if not cmd:
             return {
                 'success': False,
