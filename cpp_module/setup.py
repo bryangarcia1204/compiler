@@ -10,7 +10,7 @@ if sys.platform == 'win32':
     os.environ['CXX'] = 'g++'
 
 cpp_module = Extension(
-    'src.cpp_module',
+    'cpp_module',
     sources=[
         'detector.cpp',
         'bindings.cpp'
