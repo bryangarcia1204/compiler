@@ -69,7 +69,7 @@ class PluginLoader:
             if hasattr(module, 'STRATEGY_CLASS'):
                 strategy_class = getattr(module, 'STRATEGY_CLASS')
                 if inspect.isclass(strategy_class) and issubclass(strategy_class, CompilerStrategy):
-                    log.info(f"[PluginLoader] Plugin cargado: {strategy_class.__name__}")
+                    log.debug(f"[PluginLoader] Plugin cargado: {strategy_class.__name__}")
                     return strategy_class
                 else:
                     log.error(f"[PluginLoader] STRATEGY_CLASS no es una subclase de CompilerStrategy")
@@ -135,11 +135,11 @@ class PluginLoader:
                             plugin_id = module_info.name.split('.')[-1]
                             cls._loaded_plugins[plugin_id] = strategy_class
                             loaded += 1
-                            log.info(f"[PluginLoader] Plugin {plugin_id} cargado desde paquete")
+                            log.debug(f"[PluginLoader] Plugin {plugin_id} cargado desde paquete")
                 except Exception as e:
-                    log.debug(f"[PluginLoader] Error cargando plugin del paquete: {e}")
-        except ImportError:
-            pass
+                    log.error(f"[PluginLoader] Error cargando plugin del paquete: {e}")
+        except ImportError as e:
+            log.error(f"Error importando plagins: {e}")
 
         # Luego, cargar plugins del directorio
         for file in cls.PLUGINS_DIR.glob("*.py"):
@@ -178,12 +178,12 @@ class PluginLoader:
                             )
                             registry.add_plugin(metadata)
 
-                    log.info(f"[PluginLoader] Plugin {plugin_id} cargado y registrado")
+                    log.debug(f"[PluginLoader] Plugin {plugin_id} cargado y registrado")
 
                 except Exception as e:
                     log.error(f"[PluginLoader] Error registrando plugin {plugin_id}: {e}")
 
-        log.info(f"[PluginLoader] Cargados {loaded} plugins")
+        log.debug(f"[PluginLoader] Cargados {loaded} plugins")
         cls._notify_callbacks()
         return loaded
 

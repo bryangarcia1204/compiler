@@ -137,6 +137,7 @@ class PluginRegistry:
     def _get_registry_path(self):
         from pathlib import Path
         from ..config_manager import CONFIG_DIR
+        
         return CONFIG_DIR / self.REGISTRY_FILE
 
     def get_plugin(self, plugin_id: str) -> Optional[PluginMetadata]:

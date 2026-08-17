@@ -1,7 +1,7 @@
 # src/compilers/builtin/wasm_pack.py
 import os
 from typing import List, Tuple, Optional, Any
-from ..base import CompilerStrategy
+from src.compilers.base import CompilerStrategy
 
 
 class WasmPackStrategy(CompilerStrategy):

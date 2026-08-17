@@ -7,7 +7,7 @@ Soporta multi-target vía flags.
 import os
 import shutil
 from typing import List, Tuple, Optional, Any
-from ..base import CompilerStrategy
+from src.compilers.base import CompilerStrategy
 
 
 class ElectronPackagerStrategy(CompilerStrategy):

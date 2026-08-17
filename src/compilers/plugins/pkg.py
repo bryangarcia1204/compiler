@@ -1,6 +1,6 @@
 # src/compilers/builtin/pkg.py
 from typing import List, Tuple, Optional, Any
-from ..base import CompilerStrategy
+from src.compilers.base import CompilerStrategy
 
 
 class PkgStrategy(CompilerStrategy):

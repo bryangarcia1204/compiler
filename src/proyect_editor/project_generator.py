@@ -218,7 +218,7 @@ class ProjectGenerator:
         main_file = main_files[0] if main_files else None
 
         # Detectar si hay archivos C/C++
-        has_cpp = any(f.get('language') in ('c', 'cpp') for f in source_files)
+        has_cpp = any(f.get('language') in ('c', 'cpp', 'c++') for f in source_files)
 
         # ── PYTHON ──
         if language == 'python':
@@ -238,7 +238,7 @@ class ProjectGenerator:
             result['.gitignore'] = self._make_gitignore('go')
 
         # ── C/C++ ──
-        elif language in ('c', 'cpp'):
+        elif language in ('c', 'cpp', 'c++') and language != 'python' and project_type != 'binary_extension':
             result['Makefile'] = self._make_makefile(project_name, language, main_file)
             result['.gitignore'] = self._make_gitignore('c')
             if has_cpp:
@@ -274,7 +274,7 @@ class ProjectGenerator:
         return '\n'.join(lines)
 
     def _make_setup_py(self, name: str, info: Dict) -> str:
-        has_cpp = any(f.get('language') in ('c', 'cpp') for f in info.get('source_files', []))
+        has_cpp = any(f.get('language') in ('c', 'cpp', 'c++') for f in info.get('source_files', []))
         if has_cpp:
             return f'''from setuptools import setup, Extension
 import pybind11
@@ -334,8 +334,8 @@ require (
 '''
 
     def _make_makefile(self, name: str, language: str, main_file: Optional[str]) -> str:
-        compiler = 'g++' if language == 'cpp' else 'gcc'
-        standard = '-std=c++17' if language == 'cpp' else '-std=c11'
+        compiler = 'g++' if language in ['cpp', 'c++'] else 'gcc'
+        standard = '-std=c++17' if language in ['cpp', 'c++'] else '-std=c11'
         src = os.path.basename(main_file) if main_file else f'src/main.{language}'
         return f'''# Makefile para proyecto {language.upper()}
 # Generado por Compilador Profesional
@@ -366,7 +366,7 @@ run: $(TARGET)
 '''
 
     def _make_cmake(self, name: str, language: str) -> str:
-        standard = '17' if language == 'cpp' else '11'
+        standard = '17' if language in ['cpp', 'c++'] else '11'
         source = "{SOURCES}"
         return f'''cmake_minimum_required(VERSION 3.10)
 

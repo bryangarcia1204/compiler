@@ -35,8 +35,8 @@ log = logger.Logger()
 # Mapas de extensiones a lenguajes (prioridad)
 EXTENSION_MAP = {
     # Lenguajes compilados
-    '.c': 'c', '.cpp': 'cpp', '.cc': 'cpp', '.cxx': 'cpp',
-    '.h': 'c', '.hpp': 'cpp', '.hxx': 'cpp',
+    '.c': 'c', '.cpp': 'c++', '.cc': 'c++', '.cxx': 'c++',
+    '.h': 'c', '.hpp': 'c++', '.hxx': 'c++',
     '.rs': 'rust', '.go': 'go', '.java': 'java',
     '.cs': 'csharp', '.fs': 'fsharp', '.vb': 'vbnet',
     '.swift': 'swift', '.kt': 'kotlin', '.scala': 'scala',
@@ -81,7 +81,7 @@ CONFIG_FILES = {
     'go': ['go.mod', 'go.sum', '.golangci.yml'],
     'java': ['pom.xml', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat'],
     'c': ['Makefile', 'CMakeLists.txt', 'configure'],
-    'cpp': ['Makefile', 'CMakeLists.txt', 'configure'],
+    'c++': ['Makefile', 'CMakeLists.txt', 'configure'],
     'javascript': ['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.npmrc', '.eslintrc.js', '.prettierrc'],
     'typescript': ['package.json', 'tsconfig.json', '.eslintrc.js'],
     'php': ['composer.json', 'composer.lock', '.php-cs-fixer.php'],
@@ -95,7 +95,7 @@ CONFIG_FILES = {
 }
 
 # Lenguajes compilados a binarios nativos
-COMPILED_TO_NATIVE = {'c', 'cpp', 'rust', 'go', 'zig', 'nim', 'odin', 'vlang', 'd'}
+COMPILED_TO_NATIVE = {'c', 'c++', 'rust', 'go', 'zig', 'nim', 'odin', 'vlang', 'd'}
 
 # Lenguajes que compilan a bytecode (Java, C#, etc.)
 COMPILED_TO_BYTECODE = {'java', 'csharp', 'kotlin', 'scala', 'fsharp', 'vbnet'}
@@ -111,8 +111,8 @@ OUTPUT_TYPES = {
     'python': {'library': 'whl', 'application': 'exe', 'extension': 'pyd'},
     'rust': {'library': 'rlib', 'application': 'exe', 'cdylib': 'so'},
     'go': {'library': 'go-bin', 'application': 'exe'},
-    'c': {'library': 'a', 'application': 'exe', 'shared': 'so'},
-    'cpp': {'library': 'a', 'application': 'exe', 'shared': 'so'},
+    'c': {'library': 'a', 'application': 'exe', 'shared': 'so', 'dinamico':'dll'},
+    'c++': {'library': 'a', 'application': 'exe', 'shared': 'so', 'dinamico':'dll'},
     'java': {'library': 'jar', 'application': 'jar'},
     'csharp': {'library': 'dll', 'application': 'exe'},
     'javascript': {'application': 'nodebin', 'library': 'nodepkg'},
@@ -252,6 +252,7 @@ class ProjectAnalyzer:
 
         # 6. Detectar arquitectura de build
         self._detect_build_architecture()
+        print(self.summary['suggested_build_architecture'])
 
         # 7. Generar sugerencias
         self._generate_suggestions()
@@ -471,7 +472,7 @@ class ProjectAnalyzer:
             'go': self._analyze_go_content,
             'java': self._analyze_java_content,
             'c': self._analyze_cpp_content,
-            'cpp': self._analyze_cpp_content,
+            'c++': self._analyze_cpp_content,
             'php': self._analyze_php_content,
             'ruby': self._analyze_ruby_content,
             'elixir': self._analyze_elixir_content,
@@ -498,7 +499,7 @@ class ProjectAnalyzer:
             'go': r'func\s+main\s*\(',
             'java': r'public\s+static\s+void\s+main\s*\(',
             'c': r'int\s+main\s*\(',
-            'cpp': r'int\s+main\s*\(',
+            'c++': r'int\s+main\s*\(',
             'javascript': r'(?:require\.main\s*===|module\.parent\s*===)',
             'php': r'#!/usr/bin/env\s+php',
             'ruby': r'#!/usr/bin/env\s+ruby',
@@ -592,11 +593,11 @@ class ProjectAnalyzer:
         import re
         include_matches = re.findall(r'#include\s+[<"]([^>"]+)[>"]', content)
         for inc in include_matches:
-            self.summary['imports']['cpp'].add(inc)
+            self.summary['imports']['c++'].add(inc)
         
         # Detectar pybind11 (importante para extensiones Python)
         if 'pybind11' in content:
-            self.summary['imports']['cpp'].add('pybind11')
+            self.summary['imports']['c++'].add('pybind11')
             self.summary['evidence'].append(f"Archivo {entry['rel_path']} usa pybind11")
         
         # Detectar función main
@@ -759,7 +760,7 @@ class ProjectAnalyzer:
         """Detecta y consolida los archivos principales."""
         # Buscar archivos con función main en todos los lenguajes
         for entry in self.summary['source_files']:
-            if entry.get('language') in ('c', 'cpp', 'rust', 'go', 'java'):
+            if entry.get('language') in ('c', 'c++', 'rust', 'go', 'java'):
                 if 'main' in entry['content'].lower() if entry['content'] else False:
                     if entry['path'] not in self.summary['main_files']:
                         self.summary['main_files'].append(entry['path'])
@@ -797,7 +798,7 @@ class ProjectAnalyzer:
             # Python
             if main_lang == 'python':
                 # Detectar extensión C++ (pybind11)
-                has_cpp = any(e['language'] in ('c', 'cpp') for e in self.summary['source_files'])
+                has_cpp = any(e['language'] in ('c', 'cpp', 'c++') for e in self.summary['source_files'])
                 if has_cpp and 'pybind11' in self.summary['dependencies']:
                     scores['extension'] += 4
                     scores['binary'] += 3
@@ -845,7 +846,7 @@ class ProjectAnalyzer:
                     scores['library'] += 2
 
             # C/C++
-            elif main_lang in ('c', 'cpp'):
+            elif main_lang in ('c', 'cpp', 'c++'):
                 # Detectar extensión Python
                 if 'pybind11' in self.summary['dependencies']:
                     scores['extension'] += 4
@@ -939,7 +940,7 @@ class ProjectAnalyzer:
             'rust': 'rust_cargo',
             'go': 'go_build',
             'c': 'c_makefile',
-            'cpp': 'cpp_makefile',
+            'c++': 'cpp_makefile',
             'java': 'java_maven',
             'csharp': 'dotnet_build',
             'javascript': 'node_npm',
@@ -962,7 +963,6 @@ class ProjectAnalyzer:
         project_type = self.summary['project_type']
         main_lang = self.summary.get('main_language', 'unknown')
         config_names = [e['name'] for e in self.summary['config_files']]
-        arch = self.summary.get('suggested_build_architecture')
 
         # Sugerir archivos según lenguaje y tipo
         lang_configs = {
@@ -970,7 +970,7 @@ class ProjectAnalyzer:
             'rust': ['Cargo.toml', '.gitignore'],
             'go': ['go.mod', '.gitignore'],
             'c': ['Makefile', 'CMakeLists.txt', '.gitignore'],
-            'cpp': ['Makefile', 'CMakeLists.txt', '.gitignore'],
+            'c++': ['Makefile', 'CMakeLists.txt', '.gitignore'],
             'java': ['pom.xml', '.gitignore'],
             'javascript': ['package.json', '.gitignore'],
             'typescript': ['package.json', 'tsconfig.json', '.gitignore'],
@@ -1139,7 +1139,6 @@ class ProjectAnalyzer:
 
         # ── 1. RECOPILAR INFORMACIÓN DETALLADA ──
         languages = dict(self.summary['languages'])
-        main_lang = self.summary['main_language']
         project_type = self.summary['project_type']
         config_files = [e['name'] for e in self.summary['config_files']]
         deps = list(self.summary['dependencies'])[:10]
@@ -1149,7 +1148,7 @@ class ProjectAnalyzer:
 
         # Detectar si es extensión Python (pybind11)
         has_pybind11 = 'pybind11' in self.summary['dependencies']
-        has_cpp = any(lang in ('c', 'cpp') for lang in languages.keys())
+        has_cpp = any(lang in ('c', 'c++', 'cpp') for lang in languages.keys())
 
         # Detectar archivos de prueba
         has_tests = any('test' in f['rel_path'].lower() for f in self.summary['source_files'])
@@ -1517,7 +1516,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
 
         # Buscar en archivos .cpp con pybind11
         for entry in self.summary['source_files']:
-            if entry['language'] in ('c', 'cpp'):
+            if entry['language'] in ('c', 'cpp', 'c++'):
                 content = entry.get('content', '')
                 if 'pybind11' in content:
                     # Buscar PYBIND11_MODULE(módulo, m)
@@ -1532,7 +1531,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
     def _find_cpp_file_for_module(self, module_name: str) -> Optional[str]:
         """Busca un archivo .cpp que contenga el módulo."""
         for entry in self.summary['source_files']:
-            if entry['language'] in ('c', 'cpp'):
+            if entry['language'] in ('c', 'cpp', 'c++'):
                 if module_name in entry.get('rel_path', ''):
                     return entry['rel_path']
         return None
@@ -1573,7 +1572,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
         from ..build_rules import BuildRules
 
         languages = list(self.summary['languages'].keys())
-        rules = BuildRules.build_order(languages)
+        rules = BuildRules.build_order(languages, self.summary)
 
         self.summary['build_order'] = rules
         self.summary['build_plan'] = []
@@ -1595,7 +1594,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
 
                 if has_inputs or rule.produces:
                     self.summary['build_plan'].append({
-                        'name': rule.name,
+                        'name': rule.name if rule.name == self.summary['suggested_build_architecture'] else self.summary['suggested_build_architecture'],
                         'language': rule.language,
                         'description': rule.description,
                         'produces': [a.value for a in rule.produces],

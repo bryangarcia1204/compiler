@@ -8,6 +8,7 @@ from typing import Optional, Dict
 
 from . import logger
 from .compilers.registry import CompilerRegistry
+from .language_detector import LanguageDetector
 
 log = logger.Logger()
 
@@ -29,6 +30,7 @@ class CompilationEngine:
         self.output_queue = queue.Queue()
         self.project_dir = project_dir or os.getcwd()
         self.config = None
+        self.detector = LanguageDetector()
         if project_dir:
             from .compilador_config import CompiladorConfig
             self.config = CompiladorConfig(project_dir, auto_create=False)
@@ -39,31 +41,27 @@ class CompilationEngine:
             return self.config.get_build_command_for_language(language)
         return None
 
-    def _detect_language_from_file(self, file_path: str) -> Optional[str]:
-        """Detecta lenguaje desde la extensión del archivo"""
-        ext = os.path.splitext(file_path)[1].lower()
-        lang_map = {
-            '.c': 'c',
-            '.cpp': 'cpp',
-            '.cc': 'cpp',
-            '.cxx': 'cpp',
-            '.py': 'python',
-            '.pyw': 'python',
-            '.rs': 'rust',
-            '.go': 'go',
-            '.java': 'java',
-            '.js': 'javascript',
-            '.ts': 'typescript',
-            '.cs': 'csharp',
-            '.csproj': 'dotnet',
-            '.sln': 'dotnet',
-        }
-        return lang_map.get(ext)
-
     def build_package_command(self, file_path, tool, output_path=None, extra_args=None, target = "native"):
         """Construye (cmd, cwd, post_actions) para empaquetar."""
         extra_args = extra_args or []
         name = (tool.get('name') or '').lower()
+
+        language = self.detector.detect(file_path)
+        
+        # ── 3. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
+        if self.config and language:
+            config_cmd = self._get_build_command_from_config(language.get("language", "").lower())
+            if config_cmd:
+                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language.get("language")}: {config_cmd}")
+                # Dividir el comando y reemplazar placeholders
+                cmd_parts = config_cmd.split()
+                cmd_parts = [p.replace('{file}', file_path) for p in cmd_parts]
+                if output_path:
+                    cmd_parts = [p.replace('{output}', output_path) for p in cmd_parts]
+                if target != 'native':
+                    cmd_parts = [p.replace('{target}', target) for p in cmd_parts]
+                # Variables de entorno
+                return cmd_parts, None, []
 
         # Delegar en estrategia de empaquetado si existe
         strategy = CompilerRegistry.get(name)
@@ -96,13 +94,13 @@ class CompilationEngine:
 
         # ── 2. OBTENER NOMBRE DE LA HERRAMIENTA Y LENGUAJE ──
         name = (tool.get('name') or tool.get('command') or '').lower()
-        language = self._detect_language_from_file(file_path)
+        language = self.detector.detect(file_path)
 
         # ── 3. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
         if self.config and language:
-            config_cmd = self._get_build_command_from_config(language)
+            config_cmd = self._get_build_command_from_config(language.get("language", "").lower())
             if config_cmd:
-                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language}: {config_cmd}")
+                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language.get("language")}: {config_cmd}")
                 # Dividir el comando y reemplazar placeholders
                 cmd_parts = config_cmd.split()
                 cmd_parts = [p.replace('{file}', file_path) for p in cmd_parts]
@@ -177,6 +175,8 @@ class CompilationEngine:
         return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode, target)
 
     def _run_subprocess(self, cmd, cwd=None, timeout=None):
+        env = os.environ.copy()
+        env.update(self.config.get_env_vars())
         try:
             result = subprocess.run(
                 cmd,
@@ -186,6 +186,7 @@ class CompilationEngine:
                 cwd=cwd,
                 creationflags=CREATE_NO_WINDOW,
                 startupinfo=STARTUP_INFO,
+                env=env
             )
             return result.returncode, result.stdout, result.stderr
         except subprocess.TimeoutExpired:

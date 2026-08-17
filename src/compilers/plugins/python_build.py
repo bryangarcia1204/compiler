@@ -1,8 +1,7 @@
 # src/compilers/builtin/python_build.py
 import os
 from typing import List, Tuple, Optional, Any
-from ..base import CompilerStrategy
-
+from src.compilers.base import CompilerStrategy
 
 class PythonBuildStrategy(CompilerStrategy):
     @property

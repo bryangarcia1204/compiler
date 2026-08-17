@@ -1,4 +1,4 @@
-#include "detector.h"
+#include "detector.hpp"
 #include <array>
 #include <memory>
 #include <string>

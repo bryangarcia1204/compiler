@@ -7,8 +7,8 @@ Soporta compilación cruzada a Windows, Linux, macOS y más.
 import os
 import shutil
 from typing import List, Tuple, Optional, Any
-from ..base import CompilerStrategy
-from ...target_manager import TargetManager
+from src.compilers.base import CompilerStrategy
+from src.target_manager import TargetManager
 
 
 class PyOxidizerStrategy(CompilerStrategy):

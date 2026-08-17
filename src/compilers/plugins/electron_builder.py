@@ -8,7 +8,7 @@ import os
 import json
 import shutil
 from typing import List, Tuple, Optional, Any
-from ..base import CompilerStrategy
+from src.compilers.base import CompilerStrategy
 
 
 class ElectronBuilderStrategy(CompilerStrategy):

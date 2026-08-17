@@ -5,7 +5,7 @@ Cada regla define qué produce, qué necesita y cómo ejecutarse.
 """
 import platform
 from .compiler_detector import CompilerDetector
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -117,7 +117,7 @@ class BuildRules:
         return [r for r in cls._rules.values() if artifact in r.requires]
 
     @classmethod
-    def build_order(cls, languages: List[str]) -> List[str]:
+    def build_order(cls, languages: List[str], summary: dict[str, Any] | None = None) -> List[str]:
         """
         Calcula el orden de ejecución basado en dependencias.
         Usa ordenamiento topológico.
@@ -131,7 +131,11 @@ class BuildRules:
         # Construir grafo de dependencias
         graph = {r.name: [dep.name for dep in cls._rules.values() if dep.produces and any(
             a in r.requires for a in dep.produces
-        )] for r in relevant}
+        )] for r in relevant} 
+
+        if 'cpp_compile' in graph:
+            if 'pybind11' in summary['imports']['c++']:
+                graph.pop('cpp_compile')
 
         # Ordenamiento topológico simple
         result = []
@@ -153,7 +157,6 @@ class BuildRules:
                 for deps in graph.values():
                     if node in deps:
                         deps.remove(node)
-
         return result
 
 
@@ -165,7 +168,7 @@ def _register_default_rules(tools:list):
     # ── C / C++ ──
     BuildRules.register(BuildRule(
         name="cpp_compile",
-        language="cpp",
+        language="c++",
         description="Compila C++ a objetos y librerías",
         produces=[BuildArtifact.OBJECT_FILE, BuildArtifact.STATIC_LIB, BuildArtifact.SHARED_LIB],
         requires=[],
@@ -177,7 +180,7 @@ def _register_default_rules(tools:list):
     # ── C++ → Python (pybind11) ──
     BuildRules.register(BuildRule(
         name="cpp_to_pyd",
-        language="cpp",
+        language="c++",
         description="Compila C++ a módulo Python .pyd",
         produces=[BuildArtifact.PYD_MODULE],
         requires=[],

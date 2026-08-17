@@ -397,9 +397,10 @@ def init_project(args):
     config = CompiladorConfig(args.directory)
     if config.config_path.exists():
         print(f"⚠️  {config.config_path} ya existe.")
+        config.load()
+        print(f"✅ Proyecto inicializado en {args.directory}")
         return
-    config.load()
-    print(f"✅ Proyecto inicializado en {args.directory}")
+    
 
 
 def config_command(args):

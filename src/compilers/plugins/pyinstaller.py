@@ -1,8 +1,8 @@
 # src/compilers/builtin/pyinstaller.py
 import os
 from typing import List, Tuple, Optional, Any, Dict
-from ..base import CompilerStrategy
-from ... import logger
+from src.compilers.base import CompilerStrategy
+from src import logger
 
 log = logger.Logger()
 

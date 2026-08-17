@@ -1,8 +1,8 @@
 # src/compilers/builtin/clang.py
 import os
 from typing import List, Tuple, Optional, Any, Dict
-from ..base import CompilerStrategy
-from ...target_manager import TargetManager
+from src.compilers.base import CompilerStrategy
+from src.target_manager import TargetManager
 
 
 class ClangStrategy(CompilerStrategy):

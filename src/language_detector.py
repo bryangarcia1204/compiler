@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from . import logger
 
 log = logger.Logger()
@@ -73,7 +74,7 @@ class LanguageDetector:
     }
 
     @classmethod
-    def detect(cls, file_path):
+    def detect(cls, file_path:Path):
         ext = os.path.splitext(file_path)[1].lower()
         if ext in cls.LANGUAGE_MAP:
             info = cls.LANGUAGE_MAP[ext]
@@ -88,11 +89,11 @@ class LanguageDetector:
         return None
 
     @classmethod
-    def is_compiled(cls, file_path):
+    def is_compiled(cls, file_path:Path):
         info = cls.detect(file_path)
         return info and info['type'] == 'compiler'
 
     @classmethod
-    def is_interpreted(cls, file_path):
+    def is_interpreted(cls, file_path:Path):
         info = cls.detect(file_path)
         return info and info['type'] == 'interpreter'

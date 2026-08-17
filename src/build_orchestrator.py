@@ -9,7 +9,6 @@ import subprocess
 from typing import List, Dict, Optional, Any
 
 from . import logger
-from .build_rules import BuildRules
 
 log = logger.Logger()
 
@@ -26,7 +25,7 @@ class BuildStep:
     def run(self) -> bool:
         """Ejecuta el paso."""
         log.info(f"[Build] {self.description}")
-        log.debug(f"[Build] Comando: {' '.join(self.command)}")
+        log.info(f"[Build] Comando: {' '.join(self.command)}")
         try:
             result = subprocess.run(
                 self.command,
