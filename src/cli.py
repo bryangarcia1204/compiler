@@ -39,8 +39,9 @@ def main():
 
     # ── config ──
     parser_config = subparsers.add_parser('config', help='Muestra o edita la configuración .compilador')
-    parser_config.add_argument('--show', action='store_true', help='Muestra la configuración actual')
-    parser_config.add_argument('--set', nargs=2, metavar=('KEY', 'VALUE'), help='Establece un valor')
+    parser_config.add_argument('directory', help='Directorio del proyecto a analizar')
+    parser_config.add_argument('--show', '-sh', action='store_true', help='Muestra la configuración actual')
+    parser_config.add_argument('--set', '-s', nargs=2, metavar=('KEY', 'VALUE'), help='Establece un valor')
 
     # ── analyze ──
     parser_analyze = subparsers.add_parser('analyze', help='Analiza un proyecto y muestra un resumen')
@@ -405,7 +406,7 @@ def init_project(args):
 
 def config_command(args):
     """Muestra o edita la configuración .compilador"""
-    config = CompiladorConfig('.')
+    config = CompiladorConfig(args.directory if args.directory else '.')
     config.load()
 
     if args.show:

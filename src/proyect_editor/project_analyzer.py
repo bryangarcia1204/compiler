@@ -252,7 +252,6 @@ class ProjectAnalyzer:
 
         # 6. Detectar arquitectura de build
         self._detect_build_architecture()
-        print(self.summary['suggested_build_architecture'])
 
         # 7. Generar sugerencias
         self._generate_suggestions()
@@ -295,7 +294,7 @@ class ProjectAnalyzer:
                     "name": "default",
                     "description": "Compilación por defecto",
                     "steps": [
-                        {"language": lang, "command": "auto"} for lang in self.summary['languages'].keys()
+                        {"language": lang.keys(), "command": "auto"} for lang in self.summary['languages']
                     ]
                 }
             ])
@@ -1594,7 +1593,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
 
                 if has_inputs or rule.produces:
                     self.summary['build_plan'].append({
-                        'name': rule.name if rule.name == self.summary['suggested_build_architecture'] else self.summary['suggested_build_architecture'],
+                        'name': rule.name,
                         'language': rule.language,
                         'description': rule.description,
                         'produces': [a.value for a in rule.produces],
