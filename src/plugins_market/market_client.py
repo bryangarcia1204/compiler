@@ -16,7 +16,7 @@ class MarketClient:
     """Cliente del marketplace de plugins."""
 
     # URL del repositorio oficial (puede ser local o remoto)
-    DEFAULT_REPO_URL = "https://raw.githubusercontent.com/bryangarcia1204/compiler-plugins/main/repo.json"
+    DEFAULT_REPO_URL = "https://raw.githubusercontent.com/bryangarcia1204/compiler-plugins/main/data/plugins_registry.json"
     LOCAL_REPO_FILE = "plugins_repo.json"
 
     def __init__(self, repo_url: Optional[str] = None):
