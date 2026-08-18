@@ -68,8 +68,15 @@ class CompiladorConfig:
             "default_target": "default",
             "output_dir": "dist",
             "clean_before_build": False
-        }
-    }
+        },  
+        "main_files": [],           # Archivos principales detectados
+        "evidence": [],             # Evidencia recopilada por el analizador
+        "score_breakdown": {},      # Puntuación de intenciones
+        "suggested_config_files": [], # Archivos de configuración sugeridos
+        "suggested_build_architecture": "", # Arquitectura de build sugerida
+        "build_plan": [],           # Plan de construcción generado
+        "tools": {},                # Herramientas detectadas por CompilerDetector
+}
 
     def __init__(self, project_dir: str, auto_create: bool = True):
         """
@@ -389,3 +396,49 @@ class CompiladorConfig:
 
     def get_cross_compilation_targets(self) -> Dict:
         return self.get('cross_compilation', {})
+
+    # compilador_config.py - Añadir método
+
+    def enhance_with_ai(self, ai_client) -> bool:
+        """Mejora la configuración usando IA."""
+        prompt = f"""
+Eres un experto en configuración de proyectos. Revisa la siguiente configuración y sugiere mejoras para optimizar la compilación.
+
+Configuración actual:
+{yaml.dump(self.config, default_flow_style=False, indent=2)}
+
+Basándote en el análisis (evidence, score_breakdown, suggested_config_files), sugiere:
+1. Comandos de compilación más eficientes para cada lenguaje.
+2. Dependencias adicionales que podrían ser necesarias.
+3. Optimizaciones para el build multi-lenguaje.
+4. Variables de entorno recomendadas.
+5. Archivos de configuración que faltan (Makefile, CMakeLists.txt, etc.).
+
+Responde en formato YAML con la configuración mejorada.
+"""
+        response = ai_client.chat(messages=[
+                            {"role": "system", "content": "Eres un experto en desarrollo de software. Responde SOLO en formato YAML."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.2,
+                        max_tokens=5000,  # Aumentado para respuesta completa
+                        )
+        if response:
+            try:
+                improved_config = yaml.safe_load(response)
+                self.config = self._merge_configs(self.config, improved_config)
+                self.save()
+                return True
+            except Exception as e:
+                log.error(f"Error mejorando configuración con IA: {e}")
+        return False
+
+    def _merge_configs(self, current: Dict, improved: Dict) -> Dict:
+        """Fusiona dos configuraciones, dando prioridad a la mejorada."""
+        result = current.copy()
+        for key, value in improved.items():
+            if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+                result[key] = self._merge_configs(result[key], value)
+            else:
+                result[key] = value
+        return result

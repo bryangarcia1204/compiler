@@ -7,6 +7,7 @@ Ejecuta pasos en el orden correcto según dependencias usando reglas.
 import os
 import subprocess
 from typing import List, Dict, Optional, Any
+from .compilador_config import CompiladorConfig
 
 from . import logger
 
@@ -55,16 +56,13 @@ class BuildOrchestrator:
 
     # src/build_orchestrator.py - Modificar create_pipeline
 
+    # build_orchestrator.py - Modificar create_pipeline
+
     def create_pipeline(self, project_info: Dict) -> List[BuildStep]:
-        """
-        Crea un pipeline usando .compilador o las reglas de build.
-        """
         self.steps = []
 
         # ── 1. Intentar usar .compilador ──
-        from .compilador_config import CompiladorConfig
         config = CompiladorConfig(self.project_dir, auto_create=False)
-
         if config and config.config_path.exists():
             steps = config.get_build_steps()
             if steps:
@@ -81,11 +79,26 @@ class BuildOrchestrator:
                         )
                         self.steps.append(step)
                     elif command == 'auto':
-                        # Usar detección automática
                         self._add_auto_step(language)
                 return self.steps
 
-        # ── 2. Si no hay .compilador o no tiene steps, usar reglas ──
+        # ── 2. Si no hay .compilador o no tiene steps, usar el build_plan del análisis ──
+        build_plan = project_info.get('build_plan', [])
+        if build_plan:
+            log.info("[BuildOrchestrator] Usando build_plan del análisis")
+            for plan in build_plan:
+                cmd = plan.get('build_command', '')
+                command_list = cmd.split() if cmd else []
+                step = BuildStep(
+                    name=plan.get('name', 'unknown'),
+                    description=plan.get('description', ''),
+                    command=command_list,
+                    cwd=self.project_dir
+                )
+                self.steps.append(step)
+            return self.steps
+
+        # ── 3. Fallback: usar reglas ──
         return self.create_pipeline_from_rules(project_info)
 
     def _add_auto_step(self, language: str):

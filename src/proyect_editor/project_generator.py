@@ -74,6 +74,7 @@ class ProjectGenerator:
         language = project_info.get('main_language') or project_info.get('language') or project_info.get('type', 'python')
         project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
         project_type = project_info.get('project_type', 'application')
+        
 
         # Usar IA si está disponible y hay prompt personalizado
         if self.use_ai and self.ai_client:

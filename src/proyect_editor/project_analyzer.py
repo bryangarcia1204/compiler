@@ -276,8 +276,10 @@ class ProjectAnalyzer:
 
         return self.summary
 
+    # project_analyzer.py - Añadir al final de analyze()
+
     def _update_compilador(self):
-        """Actualiza el archivo .compilador con los datos del análisis"""
+        """Actualiza el archivo .compilador con los datos del análisis."""
         if not hasattr(self, 'compilador'):
             return
 
@@ -285,22 +287,58 @@ class ProjectAnalyzer:
         self.compilador.set('languages', list(self.summary['languages'].keys()))
         self.compilador.set('dependencies', list(self.summary['dependencies']))
         self.compilador.set('project.type', self.summary['project_type'])
-        self.compilador.set('project.name', self.summary.get('project_name', self.project_dir.name))
+        self.compilador.set('main_files', self.summary.get('main_files', []))
+        self.compilador.set('evidence', self.summary.get('evidence', []))
+        self.compilador.set('score_breakdown', self.summary.get('score_breakdown', {}))
+        self.compilador.set('suggested_config_files', self.summary.get('suggested_config_files', []))
+        self.compilador.set('suggested_build_architecture', self.summary.get('suggested_build_architecture', ''))
 
-        # Si no hay targets definidos, crear uno por defecto
-        if not self.compilador.get('targets'):
-            self.compilador.set('targets', [
-                {
+        # Si hay build_plan, actualizar los steps de los targets
+        build_plan = self.summary.get('build_plan', [])
+        if build_plan:
+            targets = self.compilador.get('targets', [])
+            if not targets:
+                targets = [{
                     "name": "default",
                     "description": "Compilación por defecto",
-                    "steps": [
-                        {"language": lang.keys(), "command": "auto"} for lang in self.summary['languages']
+                    "steps": []
+                }]
+
+            # Actualizar los steps del target por defecto
+            default_target = self.compilador.get('build.default_target', 'default')
+            for target in targets:
+                if target.get('name') == default_target:
+                    target['steps'] = [
+                        {
+                            "language": step.get('language'),
+                            "command": step.get('build_command', 'auto'),
+                            "depends_on": step.get('requires', [])
+                        }
+                        for step in build_plan
                     ]
-                }
-            ])
+                    break
+
+            self.compilador.set('targets', targets)
+
+        # Guardar herramientas detectadas
+        self._save_tools_to_compilador()
 
         self.compilador.save()
 
+    def _save_tools_to_compilador(self):
+        """Guarda las herramientas detectadas en el .compilador."""
+        from ..compiler_detector import CompilerDetector
+        tools = CompilerDetector.get_all_tools()
+        tools_info = {
+            tool.get('name'): {
+                'command': tool.get('command'),
+                'version': tool.get('version'),
+                'type': tool.get('type'),
+                'extensions': tool.get('extensions', [])
+            }
+            for tool in tools
+        }
+        self.compilador.set('tools', tools_info)
 # ──────────────────────────────────────────────────────────────
 # 3. ESCANEO DE ARCHIVOS (VERSIÓN CORREGIDA)
 # ──────────────────────────────────────────────────────────────

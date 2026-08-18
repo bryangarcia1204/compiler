@@ -136,6 +136,10 @@ def main():
     parser_create.add_argument('name', help='Nombre del plugin')
     parser_create.add_argument('--languages', '-l', help='Lenguajes soportados (separados por comas)', default='')
 
+    # ── enhance-config ──
+    parser_enhance_config = subparsers.add_parser('enhance-config', help='Mejora el archivo .compilador con IA')
+    parser_enhance_config.add_argument('directory', nargs='?', default='.', help='Directorio del proyecto')
+
     args = parser.parse_args()
 
     if args.command == 'list-tools':
@@ -156,6 +160,8 @@ def main():
         package_file(args)
     elif args.command == 'build':
         build_project(args)
+    elif args.command == "enhance-config":
+        enhance_config_command(args)
     elif args.command == 'plugin':
         if args.plugin_action == 'list':
             plugin_list()
@@ -842,6 +848,39 @@ def build_project(args):
         print("❌ Construcción falló.", file=sys.stderr)
         sys.exit(1)
 
+# cli.py - Añadir función
+
+def enhance_config_command(args):
+    """Mejora el archivo .compilador usando IA."""
+    directory = args.directory
+    if not os.path.isdir(directory):
+        print(f"Error: '{directory}' no es un directorio válido.", file=sys.stderr)
+        sys.exit(1)
+
+    config = CompiladorConfig(directory, auto_create=False)
+    if not config or not config.config_path.exists():
+        print(f"Error: No se encontró .compilador en {directory}.", file=sys.stderr)
+        sys.exit(1)
+
+    # Obtener configuración de IA
+    ai_config = config.get_ai_config()
+    if not ai_config.get('enabled'):
+        print("Error: La IA no está habilitada en .compilador.", file=sys.stderr)
+        sys.exit(1)
+
+    # Crear cliente de IA
+    from .ai_client import AIClient
+    ai_client = AIClient(
+        provider=ai_config.get('provider'),
+        api_key=ai_config.get('api_key'),
+        model=ai_config.get('model')
+    )
+
+    if config.enhance_with_ai(ai_client):
+        print("✅ Configuración mejorada con IA.")
+    else:
+        print("❌ No se pudo mejorar la configuración.", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
