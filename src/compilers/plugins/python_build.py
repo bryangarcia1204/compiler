@@ -1,6 +1,6 @@
 # src/compilers/builtin/python_build.py
 import os
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 from src.compilers.base import CompilerStrategy
 
 class PythonBuildStrategy(CompilerStrategy):
@@ -40,5 +40,9 @@ class PythonBuildStrategy(CompilerStrategy):
             post_actions.append(('wheel_move', output_path))
         return cmd, cwd, post_actions
 
+    def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
+        """Genera archivos de configuración para PyInstaller."""
+        # PyInstaller no necesita archivos de configuración específicos
+        return {}
 
 STRATEGY_CLASS = PythonBuildStrategy

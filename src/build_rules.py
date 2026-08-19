@@ -133,9 +133,11 @@ class BuildRules:
             a in r.requires for a in dep.produces
         )] for r in relevant} 
 
-        if 'cpp_compile' in graph:
+        if 'cpp_compile' and 'cpp_to_pyd' in graph:
             if 'pybind11' in summary['imports']['c++']:
                 graph.pop('cpp_compile')
+            else:
+                graph.pop('cpp_to_pyd')
 
         # Ordenamiento topológico simple
         result = []
@@ -174,7 +176,8 @@ def _register_default_rules(tools:list):
         requires=[],
         input_extensions=[".cpp", ".cc", ".cxx", ".h", ".hpp"],
         output_extensions=[".o", ".a", ".so", ".dylib", ".dll"],
-        build_command="make"  # o cmake
+        build_command="cmake" if platform.system() == 'Windows' else "make", # cmake si es en Windows o make si es Linux
+        priority=10
     ))
 
     # ── C++ → Python (pybind11) ──

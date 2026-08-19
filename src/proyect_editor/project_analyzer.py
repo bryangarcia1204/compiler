@@ -227,7 +227,7 @@ class ProjectAnalyzer:
     # 3. ESCANEO DE ARCHIVOS
     # ──────────────────────────────────────────────────────────
 
-    def analyze(self) -> Dict[str, Any]:
+    def analyze(self, archivo=None) -> Dict[str, Any]:
         """
         Realiza el análisis completo del proyecto.
         """
@@ -236,7 +236,7 @@ class ProjectAnalyzer:
         self.compilador = CompiladorConfig(str(self.project_dir), auto_create=True)
 
         # 1. Escanear archivos
-        self._scan_files()
+        self._scan_files(archivo)
 
         # 2. Analizar contenido de archivos fuente
         self._analyze_sources()
@@ -343,121 +343,230 @@ class ProjectAnalyzer:
 # 3. ESCANEO DE ARCHIVOS (VERSIÓN CORREGIDA)
 # ──────────────────────────────────────────────────────────────
 
-    def _scan_files(self):
+    def _scan_files(self, archivo = None):
         """Escanea recursivamente todos los archivos del directorio."""
-        for root, dirs, files in os.walk(self.project_dir):
-            # Filtrar directorios ignorados
-            dirs[:] = [d for d in dirs if d not in self.ignore_dirs]
+        if not archivo:
+            for root, dirs, files in os.walk(self.project_dir):
+                # Filtrar directorios ignorados
+                dirs[:] = [d for d in dirs if d not in self.ignore_dirs]
 
-            rel_root = os.path.relpath(root, self.project_dir)
-            self.summary['directories'].append(rel_root if rel_root != '.' else '')
+                rel_root = os.path.relpath(root, self.project_dir)
+                self.summary['directories'].append(rel_root if rel_root != '.' else '')
 
-            for file in files:
-                # Ignorar archivos por patrón
-                if any(fnmatch.fnmatch(file, pattern) for pattern in self.ignore_files):
-                    continue
+                for file in files:
+                    # Ignorar archivos por patrón
+                    if any(fnmatch.fnmatch(file, pattern) for pattern in self.ignore_files):
+                        continue
 
-                file_path = os.path.join(root, file)
-                rel_path = os.path.join(rel_root, file) if rel_root != '.' else file
-                ext = os.path.splitext(file)[1].lower()
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.join(rel_root, file) if rel_root != '.' else file
+                    ext = os.path.splitext(file)[1].lower()
 
-                try:
-                    size = os.path.getsize(file_path)
-                except OSError:
-                    size = 0
+                    try:
+                        size = os.path.getsize(file_path)
+                    except OSError:
+                        size = 0
 
-                entry = {
-                    'path': file_path,
-                    'rel_path': rel_path,
-                    'name': file,
-                    'ext': ext,
-                    'size': size,
-                    'is_binary': False,
-                    'is_source': False,
-                    'is_config': False,
-                    'language': None,
-                    'content': '',
-                    'hash': None,
-                    'shebang': None,
-                }
-
-                # ── DETERMINAR SI ES BINARIO ──
-                # Primero, extensiones claramente binarias
-                binary_exts = {
-                    '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo', 
-                    '.o', '.obj', '.a', '.lib', '.class', '.jar', '.war', '.ear',
-                    '.zip', '.gz', '.rar', '.7z', '.tar', '.bz2',
-                    '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
-                    '.mp3', '.mp4', '.avi', '.mkv', '.wav', '.flac',
-                    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-                    '.iso', '.img', '.bin'
-                }
-
-                if ext in binary_exts:
-                    entry['is_binary'] = True
-                    self.summary['binary_files'].append(entry)
-                else:
-                    # Extensiones de texto conocidas
-                    text_exts = {
-                        '.py', '.pyw', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hxx',
-                        '.rs', '.go', '.java', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx',
-                        '.php', '.rb', '.lua', '.r', '.m', '.mm', '.sh', '.bash', '.zsh',
-                        '.ps1', '.bat', '.cmd', '.sql', '.html', '.htm', '.css', '.scss',
-                        '.sass', '.less', '.vue', '.svelte', '.xml', '.json', '.yaml',
-                        '.yml', '.toml', '.ini', '.cfg', '.conf', '.txt', '.md', '.rst',
-                        '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore', 
-                        '.env', '.flake8', '.pylintrc', '.editorconfig'
+                    entry = {
+                        'path': file_path,
+                        'rel_path': rel_path,
+                        'name': file,
+                        'ext': ext,
+                        'size': size,
+                        'is_binary': False,
+                        'is_source': False,
+                        'is_config': False,
+                        'language': None,
+                        'content': '',
+                        'hash': None,
+                        'shebang': None,
                     }
 
-                    if ext in text_exts or ext == '' or file.startswith('.'):
-                        # Es texto, leer contenido
-                        entry['is_binary'] = False
-                        if size < self.max_file_size:
-                            try:
-                                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                                    content = f.read()
-                                    entry['content'] = content
-                                    entry['hash'] = hashlib.md5(content.encode()).hexdigest()
-                                    # Detectar shebang
-                                    if content.startswith('#!'):
-                                        shebang_line = content.splitlines()[0] if content else ''
-                                        entry['shebang'] = shebang_line
-                            except UnicodeDecodeError:
-                                # Intentar con latin-1
+                    # ── DETERMINAR SI ES BINARIO ──
+                    # Primero, extensiones claramente binarias
+                    binary_exts = {
+                        '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo', 
+                        '.o', '.obj', '.a', '.lib', '.class', '.jar', '.war', '.ear',
+                        '.zip', '.gz', '.rar', '.7z', '.tar', '.bz2',
+                        '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
+                        '.mp3', '.mp4', '.avi', '.mkv', '.wav', '.flac',
+                        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+                        '.iso', '.img', '.bin'
+                    }
+
+                    if ext in binary_exts:
+                        entry['is_binary'] = True
+                        self.summary['binary_files'].append(entry)
+                    else:
+                        # Extensiones de texto conocidas
+                        text_exts = {
+                            '.py', '.pyw', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hxx',
+                            '.rs', '.go', '.java', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx',
+                            '.php', '.rb', '.lua', '.r', '.m', '.mm', '.sh', '.bash', '.zsh',
+                            '.ps1', '.bat', '.cmd', '.sql', '.html', '.htm', '.css', '.scss',
+                            '.sass', '.less', '.vue', '.svelte', '.xml', '.json', '.yaml',
+                            '.yml', '.toml', '.ini', '.cfg', '.conf', '.txt', '.md', '.rst',
+                            '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore', 
+                            '.env', '.flake8', '.pylintrc', '.editorconfig'
+                        }
+
+                        if ext in text_exts or ext == '' or file.startswith('.'):
+                            # Es texto, leer contenido
+                            entry['is_binary'] = False
+                            if size < self.max_file_size:
                                 try:
-                                    with open(file_path, 'r', encoding='latin-1') as f:
+                                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                                         content = f.read()
                                         entry['content'] = content
                                         entry['hash'] = hashlib.md5(content.encode()).hexdigest()
+                                        # Detectar shebang
+                                        if content.startswith('#!'):
+                                            shebang_line = content.splitlines()[0] if content else ''
+                                            entry['shebang'] = shebang_line
+                                except UnicodeDecodeError:
+                                    # Intentar con latin-1
+                                    try:
+                                        with open(file_path, 'r', encoding='latin-1') as f:
+                                            content = f.read()
+                                            entry['content'] = content
+                                            entry['hash'] = hashlib.md5(content.encode()).hexdigest()
+                                    except Exception:
+                                        entry['is_binary'] = True
                                 except Exception:
                                     entry['is_binary'] = True
+                        else:
+                            # Por defecto, considerar binario
+                            entry['is_binary'] = True
+                            self.summary['binary_files'].append(entry)
+
+                        # ── DETERMINAR SI ES FUENTE ──
+                        # Solo si no es binario y tiene extensión de fuente
+                        if not entry['is_binary'] and ext in EXTENSION_MAP:
+                            entry['is_source'] = True
+                            entry['language'] = EXTENSION_MAP[ext]
+                            self.summary['source_files'].append(entry)
+                            self.summary['languages'][entry['language']] += 1
+
+                        # ── DETERMINAR SI ES CONFIGURACIÓN ──
+                        if not entry['is_binary']:
+                            for lang, configs in CONFIG_FILES.items():
+                                for pattern in configs:
+                                    if fnmatch.fnmatch(file, pattern) or file == pattern:
+                                        entry['is_config'] = True
+                                        self.summary['config_files'].append(entry)
+                                        break
+
+                    self.summary['files'].append(entry)
+                    self.summary['total_files'] += 1
+                    self.summary['total_size'] += size
+        else:
+            
+            
+            if any(fnmatch.fnmatch(archivo, pattern) for pattern in self.ignore_files):
+                return
+
+            rel_root = os.path.relpath(archivo)
+            file_path = os.path.join(archivo)
+            rel_path = os.path.join(rel_root, archivo) if rel_root != '.' else archivo
+            ext = os.path.splitext(archivo)[1].lower()
+
+            try:
+                size = os.path.getsize(file_path)
+            except OSError:
+                size = 0
+
+            entry = {
+                'path': file_path,
+                'rel_path': rel_path,
+                'name': archivo,
+                'ext': ext,
+                'size': size,
+                'is_binary': False,
+                'is_source': False,
+                'is_config': False,
+                'language': None,
+                'content': '',
+                'hash': None,
+                'shebang': None,
+            }
+
+            # ── DETERMINAR SI ES BINARIO ──
+            # Primero, extensiones claramente binarias
+            binary_exts = {
+                '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo', 
+                '.o', '.obj', '.a', '.lib', '.class', '.jar', '.war', '.ear',
+                '.zip', '.gz', '.rar', '.7z', '.tar', '.bz2',
+                '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
+                '.mp3', '.mp4', '.avi', '.mkv', '.wav', '.flac',
+                '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+                '.iso', '.img', '.bin'
+            }
+
+            if ext in binary_exts:
+                entry['is_binary'] = True
+                self.summary['binary_files'].append(entry)
+            else:
+                # Extensiones de texto conocidas
+                text_exts = {
+                    '.py', '.pyw', '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hxx',
+                    '.rs', '.go', '.java', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx',
+                    '.php', '.rb', '.lua', '.r', '.m', '.mm', '.sh', '.bash', '.zsh',
+                    '.ps1', '.bat', '.cmd', '.sql', '.html', '.htm', '.css', '.scss',
+                    '.sass', '.less', '.vue', '.svelte', '.xml', '.json', '.yaml',
+                    '.yml', '.toml', '.ini', '.cfg', '.conf', '.txt', '.md', '.rst',
+                    '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore', 
+                    '.env', '.flake8', '.pylintrc', '.editorconfig'
+                }
+
+                if ext in text_exts or ext == '' or archivo.startswith('.'):
+                    # Es texto, leer contenido
+                    entry['is_binary'] = False
+                    if size < self.max_file_size:
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                entry['content'] = content
+                                entry['hash'] = hashlib.md5(content.encode()).hexdigest()
+                                # Detectar shebang
+                                if content.startswith('#!'):
+                                    shebang_line = content.splitlines()[0] if content else ''
+                                    entry['shebang'] = shebang_line
+                        except UnicodeDecodeError:
+                            # Intentar con latin-1
+                            try:
+                                with open(file_path, 'r', encoding='latin-1') as f:
+                                    content = f.read()
+                                    entry['content'] = content
+                                    entry['hash'] = hashlib.md5(content.encode()).hexdigest()
                             except Exception:
                                 entry['is_binary'] = True
-                    else:
-                        # Por defecto, considerar binario
-                        entry['is_binary'] = True
-                        self.summary['binary_files'].append(entry)
+                        except Exception:
+                            entry['is_binary'] = True
+                else:
+                    # Por defecto, considerar binario
+                    entry['is_binary'] = True
+                    self.summary['binary_files'].append(entry)
 
-                    # ── DETERMINAR SI ES FUENTE ──
-                    # Solo si no es binario y tiene extensión de fuente
-                    if not entry['is_binary'] and ext in EXTENSION_MAP:
-                        entry['is_source'] = True
-                        entry['language'] = EXTENSION_MAP[ext]
-                        self.summary['source_files'].append(entry)
-                        self.summary['languages'][entry['language']] += 1
+                # ── DETERMINAR SI ES FUENTE ──
+                # Solo si no es binario y tiene extensión de fuente
+                if not entry['is_binary'] and ext in EXTENSION_MAP:
+                    entry['is_source'] = True
+                    entry['language'] = EXTENSION_MAP[ext]
+                    self.summary['source_files'].append(entry)
+                    self.summary['languages'][entry['language']] += 1
 
-                    # ── DETERMINAR SI ES CONFIGURACIÓN ──
-                    if not entry['is_binary']:
-                        for lang, configs in CONFIG_FILES.items():
-                            for pattern in configs:
-                                if fnmatch.fnmatch(file, pattern) or file == pattern:
-                                    entry['is_config'] = True
-                                    self.summary['config_files'].append(entry)
-                                    break
+                # ── DETERMINAR SI ES CONFIGURACIÓN ──
+                if not entry['is_binary']:
+                    for lang, configs in CONFIG_FILES.items():
+                        for pattern in configs:
+                            if fnmatch.fnmatch(file, pattern) or file == pattern:
+                                entry['is_config'] = True
+                                self.summary['config_files'].append(entry)
+                                break
 
-                self.summary['files'].append(entry)
-                self.summary['total_files'] += 1
-                self.summary['total_size'] += size
+            self.summary['files'].append(entry)
+            self.summary['total_files'] += 1
+            self.summary['total_size'] += size
 
     def _is_binary_file(self, file_path: str) -> bool:
         """Detecta si un archivo es binario."""

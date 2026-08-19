@@ -541,8 +541,12 @@ class ProjectGeneratorDialog(QMainWindow):
 
     def on_generation_finished(self, files: Dict[str, str]):
         """Maneja la finalización de la generación."""
-        self.generated_files = files
-        self.edited_files = files.copy()
+
+        config_files = self.project_info.get("config_files")
+        name_config = [cf["name"] for cf in config_files]
+
+        self.generated_files = {k:v for k,v in files.items() if k not in name_config}
+        self.edited_files = self.generated_files.copy()
 
         # Limpiar tabs
         for i in range(self.file_tabs.count() - 1, -1, -1):
@@ -732,7 +736,7 @@ class ProjectGeneratorDialog(QMainWindow):
         project_type = self.project_info.get('project_type', 'application')
         language = self.project_info.get('main_language', '')
         binary_target = self.project_info.get('binary_target')
-        main_file = self.project_info.get('main_file')
+        main_file = self.project_info.get('main_files')
 
         if isinstance(main_file, list) and main_file:
             main_file = main_file[0]
@@ -921,7 +925,7 @@ class ProjectGeneratorDialog(QMainWindow):
                 build_dir = os.path.join(project_dir, 'build')
                 os.makedirs(build_dir, exist_ok=True)
                 return {
-                    'cmd': ['cmake', '..', '&&', 'cmake', '--build', '.'],
+                    'cmd': ['cmake', '-S', build_dir, '-B', build_dir, '&&', 'cmake', '--build', '.'],
                     'cwd': build_dir,
                     'timeout': 600,
                     'description': 'Compilando con CMake'

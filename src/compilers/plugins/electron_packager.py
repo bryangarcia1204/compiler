@@ -6,7 +6,7 @@ Soporta multi-target vía flags.
 
 import os
 import shutil
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 from src.compilers.base import CompilerStrategy
 
 
@@ -76,5 +76,9 @@ class ElectronPackagerStrategy(CompilerStrategy):
 
         return cmd, None, []
 
+    def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
+        """Genera archivos de configuración para PyInstaller."""
+        # PyInstaller no necesita archivos de configuración específicos
+        return {}
 
 STRATEGY_CLASS = ElectronPackagerStrategy

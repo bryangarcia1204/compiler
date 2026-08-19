@@ -26,7 +26,7 @@ class BuildStep:
     def run(self) -> bool:
         """Ejecuta el paso."""
         log.info(f"[Build] {self.description}")
-        log.info(f"[Build] Comando: {' '.join(self.command)}")
+        log.debug(f"[Build] Comando: {' '.join(self.command)}")
         try:
             result = subprocess.run(
                 self.command,

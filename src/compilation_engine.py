@@ -120,7 +120,7 @@ class CompilationEngine:
         # ── 5. FALLBACK LEGACY ──
         log.debug(f"[CompilationEngine] Sin estrategia para '{name}', usando fallback original")
         cmd, cwd, post_actions = self._legacy_fallback(file_path, tool, output_path, extra_args, output_type, release_mode)
-        return cmd, cwd, post_actions, {}
+        return cmd, cwd, post_actions
 
     def _legacy_fallback(self, file_path, tool, output_path=None, extra_args=None,
                          output_type='exe', release_mode=False):
@@ -175,8 +175,6 @@ class CompilationEngine:
         return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode, target)
 
     def _run_subprocess(self, cmd, cwd=None, timeout=None):
-        env = os.environ.copy()
-        env.update(self.config.get_env_vars())
         try:
             result = subprocess.run(
                 cmd,
@@ -186,7 +184,6 @@ class CompilationEngine:
                 cwd=cwd,
                 creationflags=CREATE_NO_WINDOW,
                 startupinfo=STARTUP_INFO,
-                env=env
             )
             return result.returncode, result.stdout, result.stderr
         except subprocess.TimeoutExpired:

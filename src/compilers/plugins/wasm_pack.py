@@ -1,6 +1,6 @@
 # src/compilers/builtin/wasm_pack.py
 import os
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 from src.compilers.base import CompilerStrategy
 
 
@@ -44,5 +44,9 @@ class WasmPackStrategy(CompilerStrategy):
         cwd = os.path.dirname(file_path) if os.path.isfile(file_path) else None
         return cmd, cwd, []
 
+    def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
+        """Genera archivos de configuración para PyInstaller."""
+        # PyInstaller no necesita archivos de configuración específicos
+        return {}
 
 STRATEGY_CLASS = WasmPackStrategy
