@@ -258,7 +258,7 @@ class CompilationEngine:
         if output_type in ('cargo-release', 'wasm', 'apk', 'jar', 'whl'):
             timeout = 600
 
-        log.debug(f"Comando a utilizar: {' '.join(cmd)}")
+        log.debug(f"[CompilationEngine] [Compile] Comando a utilizar: {' '.join(cmd)}")
         returncode, stdout, stderr = self._run_subprocess(cmd, cwd=cwd, timeout=timeout)
 
         if returncode == 0 and post_actions:
@@ -296,6 +296,7 @@ class CompilationEngine:
             }
 
         timeout = 600
+        log.debug(f"[CompilationEngine] [Package] Comando a utilizar: {' '.join(cmd)}")
         returncode, stdout, stderr = self._run_subprocess(cmd, cwd=cwd, timeout=timeout)
 
         if returncode == 0 and post_actions:

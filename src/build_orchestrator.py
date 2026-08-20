@@ -25,8 +25,8 @@ class BuildStep:
 
     def run(self) -> bool:
         """Ejecuta el paso."""
-        log.info(f"[Build] {self.description}")
-        log.debug(f"[Build] Comando: {' '.join(self.command)}")
+        log.info(f"[BuildStep] {self.description}")
+        log.debug(f"[BuildStep] Comando: {' '.join(self.command)}")
         try:
             result = subprocess.run(
                 self.command,
@@ -54,10 +54,6 @@ class BuildOrchestrator:
         self.project_dir = project_dir
         self.steps: List[BuildStep] = []
 
-    # src/build_orchestrator.py - Modificar create_pipeline
-
-    # build_orchestrator.py - Modificar create_pipeline
-
     def create_pipeline(self, project_info: Dict) -> List[BuildStep]:
         self.steps = []
 
@@ -79,38 +75,23 @@ class BuildOrchestrator:
                         )
                         self.steps.append(step)
                     elif command == 'auto':
-                        self._add_auto_step(language)
+                        self._add_auto_step(language, project_info)
                 return self.steps
 
-        # ── 2. Si no hay .compilador o no tiene steps, usar el build_plan del análisis ──
-        build_plan = project_info.get('build_plan', [])
-        if build_plan:
-            log.info("[BuildOrchestrator] Usando build_plan del análisis")
-            for plan in build_plan:
-                cmd = plan.get('build_command', '')
-                command_list = cmd.split() if cmd else []
-                step = BuildStep(
-                    name=plan.get('name', 'unknown'),
-                    description=plan.get('description', ''),
-                    command=command_list,
-                    cwd=self.project_dir
-                )
-                self.steps.append(step)
-            return self.steps
-
-        # ── 3. Fallback: usar reglas ──
+        # ── 2. Fallback: usar reglas ──
         return self.create_pipeline_from_rules(project_info)
 
-    def _add_auto_step(self, language: str):
+    def _add_auto_step(self, language: str, project_info: Dict):
         """Añade un paso automático para un lenguaje usando la estrategia correspondiente"""
         from .compilers.registry import CompilerRegistry
         strategy = CompilerRegistry.get(language)
         if strategy:
+            cmd, cwd, post_action = strategy.build_command(project_info["main_files"],project_info["project_dir"],project_info.get("extra_args"), release_mode=True)
             step = BuildStep(
                 name=f"build_{language}",
                 description=f"Compilando {language} (auto)",
-                command=["echo", f"Compilando {language}..."],
-                cwd=self.project_dir
+                command=cmd,
+                cwd=cwd
             )
             self.steps.append(step)
 
