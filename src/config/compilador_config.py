@@ -385,12 +385,6 @@ class CompiladorConfig:
                 return target.get('steps', [])
         return []
 
-    def get_output_dir(self) -> str:
-        return self.get('build.output_dir', 'dist')
-
-    def should_clean_before_build(self) -> bool:
-        return self.get('build.clean_before_build', False)
-
     def should_build_parallel(self) -> bool:
         return self.get('build.parallel', False)
 

@@ -22,6 +22,7 @@ class OSTarget(Enum):
     WINDOWS = "windows"
     LINUX = "linux"
     MACOS = "macos"
+    DARWIN = "darwin"
     FREEBSD = "freebsd"
     ANDROID = "android"
     IOS = "ios"

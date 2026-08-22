@@ -47,8 +47,13 @@ class CompilationEngine:
         name = (tool.get('name') or '').lower()
 
         language = self.detector.detect(file_path)
-        
-        # ── 3. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
+
+        # Delegar en estrategia de empaquetado si existe
+        strategy = CompilerRegistry.get(name)
+        if strategy and hasattr(strategy, 'build_package_command'):
+            return strategy.build_package_command(file_path, output_path, extra_args, target)
+
+        # ── 4. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
         if self.config and language:
             config_cmd = self._get_build_command_from_config(language.get("language", "").lower())
             if config_cmd:
@@ -62,11 +67,6 @@ class CompilationEngine:
                     cmd_parts = [p.replace('{target}', target) for p in cmd_parts]
                 # Variables de entorno
                 return cmd_parts, None, []
-
-        # Delegar en estrategia de empaquetado si existe
-        strategy = CompilerRegistry.get(name)
-        if strategy and hasattr(strategy, 'build_package_command'):
-            return strategy.build_package_command(file_path, output_path, extra_args, target)
 
         # Fallback: usar la estrategia de compilación con output_type='exe'
         if strategy:
