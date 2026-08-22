@@ -27,8 +27,9 @@ class GoStrategy(CompilerStrategy):
         out = output_path or os.path.splitext(file_path)[0]
 
         # Go cross-compilation via environment variables
-        env = {}
+        
         if target != 'native':
+            env = {}
             target_info = TargetManager.get_target(target)
             if target_info:
                 goos_map = {
@@ -59,7 +60,10 @@ class GoStrategy(CompilerStrategy):
             cmd.extend(extra_args)
 
         # Las variables de entorno se pasan en el proceso hijo (no en cmd)
-        return cmd, None, [], env
+        if env:
+            return cmd, None, [], env
+        else:
+            return cmd, None, []
 
     def build_package_command(
         self,

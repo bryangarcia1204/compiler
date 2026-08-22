@@ -79,7 +79,7 @@ class TestCompilationEngine(unittest.TestCase):
 
     def test_build_command_for_go(self):
         tool = {'name': 'go', 'type': 'compiler', 'command': 'go'}
-        cmd, cwd, actions, env = self.engine.build_command_for(
+        cmd, cwd, actions = self.engine.build_command_for(
             'main.go', tool, output_path='out'
         )
         self.assertIn('go', cmd)
@@ -87,7 +87,7 @@ class TestCompilationEngine(unittest.TestCase):
 
     def test_build_command_for_go_release(self):
         tool = {'name': 'go', 'type': 'compiler', 'command': 'go'}
-        cmd, cwd, actions, env = self.engine.build_command_for(
+        cmd, cwd, actions = self.engine.build_command_for(
             'main.go', tool, release_mode=True
         )
         self.assertIn('-ldflags', cmd)
