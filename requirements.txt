@@ -8,4 +8,4 @@ setuptools==84.0.0
 tomli==2.4.1
 pyyaml==6.0.3
 watchdog==6.0.0
-Qscintilla==12.17.0
+Qscintilla==2.14.1
