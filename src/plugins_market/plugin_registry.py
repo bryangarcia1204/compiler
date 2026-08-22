@@ -4,13 +4,14 @@ Registro central de plugins activos y disponibles.
 """
 
 import json
-from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Dict, List, Optional
 
 
 class PluginStatus(Enum):
     """Estado de un plugin."""
+
     AVAILABLE = "available"
     INSTALLED = "installed"
     ACTIVE = "active"
@@ -23,6 +24,7 @@ class PluginStatus(Enum):
 @dataclass
 class PluginMetadata:
     """Metadatos de un plugin."""
+
     id: str
     name: str
     version: str
@@ -43,46 +45,46 @@ class PluginMetadata:
 
     def to_dict(self) -> Dict:
         return {
-            'id': self.id,
-            'name': self.name,
-            'version': self.version,
-            'description': self.description,
-            'author': self.author,
-            'email': self.email,
-            'homepage': self.homepage,
-            'repository': self.repository,
-            'dependencies': self.dependencies,
-            'supported_languages': self.supported_languages,
-            'supported_platforms': self.supported_platforms,
-            'min_compiler_version': self.min_compiler_version,
-            'max_compiler_version': self.max_compiler_version,
-            'installed_at': self.installed_at,
-            'active': self.active,
-            'status': self.status.value,
-            'strategy_class': self.strategy_class,
+            "id": self.id,
+            "name": self.name,
+            "version": self.version,
+            "description": self.description,
+            "author": self.author,
+            "email": self.email,
+            "homepage": self.homepage,
+            "repository": self.repository,
+            "dependencies": self.dependencies,
+            "supported_languages": self.supported_languages,
+            "supported_platforms": self.supported_platforms,
+            "min_compiler_version": self.min_compiler_version,
+            "max_compiler_version": self.max_compiler_version,
+            "installed_at": self.installed_at,
+            "active": self.active,
+            "status": self.status.value,
+            "strategy_class": self.strategy_class,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'PluginMetadata':
-        status = data.get('status', 'available')
+    def from_dict(cls, data: Dict) -> "PluginMetadata":
+        status = data.get("status", "available")
         return cls(
-            id=data.get('id', ''),
-            name=data.get('name', ''),
-            version=data.get('version', '0.0.1'),
-            description=data.get('description', ''),
-            author=data.get('author', 'Unknown'),
-            email=data.get('email'),
-            homepage=data.get('homepage'),
-            repository=data.get('repository'),
-            dependencies=data.get('dependencies', []),
-            supported_languages=data.get('supported_languages', []),
-            supported_platforms=data.get('supported_platforms', []),
-            min_compiler_version=data.get('min_compiler_version', '1.0.0'),
-            max_compiler_version=data.get('max_compiler_version'),
-            installed_at=data.get('installed_at'),
-            active=data.get('active', True),
+            id=data.get("id", ""),
+            name=data.get("name", ""),
+            version=data.get("version", "0.0.1"),
+            description=data.get("description", ""),
+            author=data.get("author", "Unknown"),
+            email=data.get("email"),
+            homepage=data.get("homepage"),
+            repository=data.get("repository"),
+            dependencies=data.get("dependencies", []),
+            supported_languages=data.get("supported_languages", []),
+            supported_platforms=data.get("supported_platforms", []),
+            min_compiler_version=data.get("min_compiler_version", "1.0.0"),
+            max_compiler_version=data.get("max_compiler_version"),
+            installed_at=data.get("installed_at"),
+            active=data.get("active", True),
             status=PluginStatus(status) if isinstance(status, str) else status,
-            strategy_class=data.get('strategy_class'),
+            strategy_class=data.get("strategy_class"),
         )
 
 
@@ -108,12 +110,13 @@ class PluginRegistry:
         registry_path = self._get_registry_path()
         if registry_path.exists():
             try:
-                with open(registry_path, 'r', encoding='utf-8') as f:
+                with open(registry_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for plugin_id, plugin_data in data.items():
                         self._plugins[plugin_id] = PluginMetadata.from_dict(plugin_data)
             except Exception as e:
                 from ..utils import logger
+
                 log = logger.Logger()
                 log.error(f"[PluginRegistry] Error cargando registro: {e}")
         self._loaded = True
@@ -124,10 +127,11 @@ class PluginRegistry:
         try:
             registry_path.parent.mkdir(parents=True, exist_ok=True)
             data = {pid: p.to_dict() for pid, p in self._plugins.items()}
-            with open(registry_path, 'w', encoding='utf-8') as f:
+            with open(registry_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             from ..utils import logger
+
             log = logger.Logger()
             log.error(f"[PluginRegistry] Error guardando registro: {e}")
 

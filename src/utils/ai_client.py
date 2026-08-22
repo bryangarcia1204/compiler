@@ -4,19 +4,21 @@ Cliente unificado para servicios de IA.
 Soporta: PlataformIA, DeepSeek, OpenAI, Groq, y TinyLlama (local)
 """
 
-import os
 import json
+import os
 import re
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 try:
     from openai import OpenAI
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
     from llama_cpp import Llama
+
     LLAMA_CPP_AVAILABLE = True
 except ImportError:
     LLAMA_CPP_AVAILABLE = False
@@ -78,7 +80,7 @@ class AIClient:
         model_path: Optional[str] = None,
         n_ctx: int = 4096,
         n_threads: int = 4,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         """
         Inicializa el cliente de IA.
@@ -102,7 +104,9 @@ class AIClient:
         # Configuración específica para TinyLlama
         self.model_path = model_path or os.getenv(
             "TINYLLAMA_PATH",
-            os.path.join(os.path.dirname(__file__), 'module', 'qwen2.5-coder-1.5b-instruct-q3_k_m.gguf')
+            os.path.join(
+                os.path.dirname(__file__), "module", "qwen2.5-coder-1.5b-instruct-q3_k_m.gguf"
+            ),
         )
         self.n_ctx = n_ctx
         self.n_threads = n_threads
@@ -130,10 +134,7 @@ class AIClient:
             return
 
         try:
-            self.client = OpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url
-            )
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
             log.info(f"[AIClient] Cliente inicializado para {self.provider} - Modelo: {self.model}")
         except Exception as e:
             log.error(f"[AIClient] Error inicializando cliente {self.provider}: {e}")
@@ -141,26 +142,30 @@ class AIClient:
     def _init_tinyllama(self):
         """Inicializa cliente local con TinyLlama."""
         if not LLAMA_CPP_AVAILABLE:
-            log.error("[AIClient] llama-cpp-python no está instalado. Instala con: pip install llama-cpp-python")
+            log.error(
+                "[AIClient] llama-cpp-python no está instalado. Instala con: pip install llama-cpp-python"
+            )
             return
 
         if not os.path.exists(self.model_path):
             log.error(f"[AIClient] Modelo Qwen no encontrado en: {self.model_path}")
-            log.info("[AIClient] Descarga el modelo desde: https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF")
+            log.info(
+                "[AIClient] Descarga el modelo desde: https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
+            )
             return
 
         try:
             self.client = Llama(
                 model_path=self.model_path,
-                n_ctx=8192,              # Contexto máximo para archivos grandes
+                n_ctx=8192,  # Contexto máximo para archivos grandes
                 n_threads=4,
                 verbose=False,
-                seed=42,                 # Resultados deterministas
-                repeat_penalty=1.1,      # Evita repeticiones
-                temperature=0.1,         # Baja para código preciso
+                seed=42,  # Resultados deterministas
+                repeat_penalty=1.1,  # Evita repeticiones
+                temperature=0.1,  # Baja para código preciso
                 top_p=0.9,
                 top_k=40,
-                stop=["</s>", "User:", "Assistant:"]
+                stop=["</s>", "User:", "Assistant:"],
             )
             log.info(f"[AIClient] Qwen cargado correctamente desde: {self.model_path}")
         except Exception as e:
@@ -172,7 +177,7 @@ class AIClient:
         model: Optional[str] = None,
         temperature: float = 0.5,
         max_tokens: int = 2000,
-        **kwargs
+        **kwargs,
     ) -> Optional[str]:
         """
         Realiza una petición de chat al modelo.
@@ -208,7 +213,7 @@ class AIClient:
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
-            **kwargs
+            **kwargs,
         )
         return response.choices[0].message.content
 
@@ -223,10 +228,10 @@ class AIClient:
             max_tokens=max_tokens,
             temperature=temperature,
             stop=["</s>", "User:", "Assistant:", "\n\n", "###"],
-            echo=False
+            echo=False,
         )
 
-        result = response['choices'][0]['text'].strip()
+        result = response["choices"][0]["text"].strip()
         log.debug(f"[TinyLlama] Respuesta (primeros 300 chars): {result}")
         return result
 
@@ -241,14 +246,14 @@ class AIClient:
         """
         formatted = ""
         for msg in messages:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
 
-            if role == 'system':
+            if role == "system":
                 formatted += f"<|system|>\n{content}\n"
-            elif role == 'user':
+            elif role == "user":
                 formatted += f"<|user|>\n{content}\n"
-            elif role == 'assistant':
+            elif role == "assistant":
                 formatted += f"<|assistant|>\n{content}\n"
 
         # Añadir el final para que la IA empiece a generar
@@ -257,10 +262,7 @@ class AIClient:
         return formatted
 
     def generate_code(
-        self,
-        prompt: str,
-        context: str = "",
-        language: str = "python"
+        self, prompt: str, context: str = "", language: str = "python"
     ) -> Optional[str]:
         """
         Especializado para generar código.
@@ -280,7 +282,7 @@ Incluye comentarios relevantes en el código."""
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Contexto del proyecto:\n{context}\n\nTarea: {prompt}"}
+            {"role": "user", "content": f"Contexto del proyecto:\n{context}\n\nTarea: {prompt}"},
         ]
 
         return self.chat(messages, temperature=0.3, max_tokens=4000)
@@ -301,7 +303,10 @@ Incluye: tipo de proyecto, archivos de configuración necesarios, recomendacione
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Analiza este proyecto:\n\n{project_summary}\n\nResponde en formato JSON con las siguientes claves: project_type, suggested_configs, recommendations, binary_config."}
+            {
+                "role": "user",
+                "content": f"Analiza este proyecto:\n\n{project_summary}\n\nResponde en formato JSON con las siguientes claves: project_type, suggested_configs, recommendations, binary_config.",
+            },
         ]
 
         response = self.chat(messages, temperature=0.4, max_tokens=2000)
@@ -321,9 +326,9 @@ Incluye: tipo de proyecto, archivos de configuración necesarios, recomendacione
         """
         # Buscar JSON entre ```json ... ``` o directamente el objeto JSON
         patterns = [
-            r'```json\s*([\s\S]*?)\s*```',  # Bloque JSON con markdown
-            r'```\s*([\s\S]*?)\s*```',       # Bloque sin especificar
-            r'\{[\s\S]*\}',                  # Cualquier objeto JSON
+            r"```json\s*([\s\S]*?)\s*```",  # Bloque JSON con markdown
+            r"```\s*([\s\S]*?)\s*```",  # Bloque sin especificar
+            r"\{[\s\S]*\}",  # Cualquier objeto JSON
         ]
 
         for pattern in patterns:

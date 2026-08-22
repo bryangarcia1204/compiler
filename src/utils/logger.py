@@ -18,16 +18,16 @@ class Logger:
         if not self._initialized:
             self._initialized = True
             # Configurar logging
-            self.logger = logging.getLogger('CompiladorApp')
+            self.logger = logging.getLogger("CompiladorApp")
             self.logger.setLevel(logging.DEBUG)
 
             # Crear directorio de logs si no existe
-            log_dir = os.path.join(os.path.expanduser('~'), '.compilador_app', 'logs')
+            log_dir = os.path.join(os.path.expanduser("~"), ".compilador_app", "logs")
             os.makedirs(log_dir, exist_ok=True)
 
             # Handler para archivo
             log_file = os.path.join(log_dir, f'app_{datetime.now().strftime("%Y%m%d")}.log')
-            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
 
             # Handler para consola
@@ -35,7 +35,7 @@ class Logger:
             console_handler.setLevel(logging.INFO)
 
             # Formato
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             file_handler.setFormatter(formatter)
             console_handler.setFormatter(formatter)
 

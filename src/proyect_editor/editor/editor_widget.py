@@ -5,13 +5,23 @@ Basado en QScintilla, soporta múltiples lenguajes.
 """
 
 import os
-from PyQt5.Qsci import QsciScintilla, QsciLexerCPP, QsciLexerPython, QsciLexerJavaScript  # type: ignore
-from PyQt5.Qsci import QsciLexerMarkdown, QsciLexerJSON, QsciLexerXML, QsciLexerYAML  # type: ignore
+
+from PyQt5.Qsci import (  # type: ignore
+    QsciLexerCPP,
+    QsciLexerJavaScript,
+    QsciLexerJSON,
+    QsciLexerMarkdown,
+    QsciLexerPython,
+    QsciLexerXML,
+    QsciLexerYAML,
+    QsciScintilla,
+)
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QColor
-from PyQt5.QtWidgets import QMenu, QAction
+from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtWidgets import QAction, QMenu
 
 from ...utils import logger
+
 log = logger.Logger()
 
 
@@ -20,29 +30,29 @@ class CodeEditor(QsciScintilla):
 
     # Mapeo de extensiones a lexers
     EXTENSION_MAP = {
-        '.py': QsciLexerPython,
-        '.pyw': QsciLexerPython,
-        '.c': QsciLexerCPP,
-        '.cpp': QsciLexerCPP,
-        '.cc': QsciLexerCPP,
-        '.cxx': QsciLexerCPP,
-        '.h': QsciLexerCPP,
-        '.hpp': QsciLexerCPP,
-        '.hxx': QsciLexerCPP,
-        '.rs': QsciLexerCPP,  # Rust fallback
-        '.go': QsciLexerCPP,  # Go fallback
-        '.js': QsciLexerJavaScript,
-        '.jsx': QsciLexerJavaScript,
-        '.ts': QsciLexerJavaScript,
-        '.json': QsciLexerJSON,
-        '.xml': QsciLexerXML,
-        '.md': QsciLexerMarkdown,
-        '.yml': QsciLexerYAML,
-        '.yaml': QsciLexerYAML,
-        '.toml': QsciLexerYAML,
-        '.txt': None,
-        '.gitignore': None,
-        '': None,
+        ".py": QsciLexerPython,
+        ".pyw": QsciLexerPython,
+        ".c": QsciLexerCPP,
+        ".cpp": QsciLexerCPP,
+        ".cc": QsciLexerCPP,
+        ".cxx": QsciLexerCPP,
+        ".h": QsciLexerCPP,
+        ".hpp": QsciLexerCPP,
+        ".hxx": QsciLexerCPP,
+        ".rs": QsciLexerCPP,  # Rust fallback
+        ".go": QsciLexerCPP,  # Go fallback
+        ".js": QsciLexerJavaScript,
+        ".jsx": QsciLexerJavaScript,
+        ".ts": QsciLexerJavaScript,
+        ".json": QsciLexerJSON,
+        ".xml": QsciLexerXML,
+        ".md": QsciLexerMarkdown,
+        ".yml": QsciLexerYAML,
+        ".yaml": QsciLexerYAML,
+        ".toml": QsciLexerYAML,
+        ".txt": None,
+        ".gitignore": None,
+        "": None,
     }
 
     def __init__(self, parent=None, filename: str = "", content: str = ""):
@@ -65,10 +75,10 @@ class CodeEditor(QsciScintilla):
         self.setFont(font)
 
         # Colores del tema oscuro (similar a VS Code)
-        self.bg_color = QColor(0x1e1e1e)
-        self.fg_color = QColor(0xd4d4d4)
-        self.selection_color = QColor(0x264f78)
-        self.line_highlight = QColor(0x2a2a2a)
+        self.bg_color = QColor(0x1E1E1E)
+        self.fg_color = QColor(0xD4D4D4)
+        self.selection_color = QColor(0x264F78)
+        self.line_highlight = QColor(0x2A2A2A)
         self.margin_bg = QColor(0x252526)
         self.margin_fg = QColor(0x858585)
 
@@ -131,34 +141,34 @@ class CodeEditor(QsciScintilla):
                 lexer.setDefaultColor(self.fg_color)
 
                 # También configurar el estilo 0 (default) explícitamente
-                lexer.setColor(self.fg_color, 0)          # Texto por defecto
-                lexer.setPaper(self.bg_color, 0)          # Fondo por defecto
+                lexer.setColor(self.fg_color, 0)  # Texto por defecto
+                lexer.setPaper(self.bg_color, 0)  # Fondo por defecto
 
                 # Para Python, asegurar que los números y strings sean legibles
                 if isinstance(lexer, QsciLexerPython):
-                    lexer.setColor(QColor(0x569cd6), QsciLexerPython.Keyword)
-                    lexer.setColor(QColor(0xce9178), QsciLexerPython.SingleQuotedString)
-                    lexer.setColor(QColor(0xce9178), QsciLexerPython.DoubleQuotedString)
-                    lexer.setColor(QColor(0xb5cea8), QsciLexerPython.Number)
-                    lexer.setColor(QColor(0x4ec9b0), QsciLexerPython.FunctionMethodName)
-                    lexer.setColor(QColor(0x6a9955), QsciLexerPython.Comment)
-                    lexer.setColor(QColor(0xc8c8c8), QsciLexerPython.CommentBlock)
+                    lexer.setColor(QColor(0x569CD6), QsciLexerPython.Keyword)
+                    lexer.setColor(QColor(0xCE9178), QsciLexerPython.SingleQuotedString)
+                    lexer.setColor(QColor(0xCE9178), QsciLexerPython.DoubleQuotedString)
+                    lexer.setColor(QColor(0xB5CEA8), QsciLexerPython.Number)
+                    lexer.setColor(QColor(0x4EC9B0), QsciLexerPython.FunctionMethodName)
+                    lexer.setColor(QColor(0x6A9955), QsciLexerPython.Comment)
+                    lexer.setColor(QColor(0xC8C8C8), QsciLexerPython.CommentBlock)
 
                 # Para JavaScript
                 elif isinstance(lexer, QsciLexerJavaScript):
-                    lexer.setColor(QColor(0x569cd6), QsciLexerJavaScript.Keyword)
-                    lexer.setColor(QColor(0xce9178), QsciLexerJavaScript.String)
-                    lexer.setColor(QColor(0xb5cea8), QsciLexerJavaScript.Number)
-                    lexer.setColor(QColor(0x4ec9b0), QsciLexerJavaScript.Function)
-                    lexer.setColor(QColor(0x6a9955), QsciLexerJavaScript.Comment)
+                    lexer.setColor(QColor(0x569CD6), QsciLexerJavaScript.Keyword)
+                    lexer.setColor(QColor(0xCE9178), QsciLexerJavaScript.String)
+                    lexer.setColor(QColor(0xB5CEA8), QsciLexerJavaScript.Number)
+                    lexer.setColor(QColor(0x4EC9B0), QsciLexerJavaScript.Function)
+                    lexer.setColor(QColor(0x6A9955), QsciLexerJavaScript.Comment)
 
                 # Para C/C++
                 elif isinstance(lexer, QsciLexerCPP):
-                    lexer.setColor(QColor(0x569cd6), QsciLexerCPP.Keyword)
-                    lexer.setColor(QColor(0xce9178), QsciLexerCPP.DoubleQuotedString)
-                    lexer.setColor(QColor(0xb5cea8), QsciLexerCPP.Number)
-                    lexer.setColor(QColor(0x4ec9b0), QsciLexerCPP.Function)
-                    lexer.setColor(QColor(0x6a9955), QsciLexerCPP.Comment)
+                    lexer.setColor(QColor(0x569CD6), QsciLexerCPP.Keyword)
+                    lexer.setColor(QColor(0xCE9178), QsciLexerCPP.DoubleQuotedString)
+                    lexer.setColor(QColor(0xB5CEA8), QsciLexerCPP.Number)
+                    lexer.setColor(QColor(0x4EC9B0), QsciLexerCPP.Function)
+                    lexer.setColor(QColor(0x6A9955), QsciLexerCPP.Comment)
 
                 # Aplicar el lexer al editor
                 self.setLexer(lexer)
@@ -192,7 +202,7 @@ class CodeEditor(QsciScintilla):
     def save_to_file(self, filepath: str) -> bool:
         """Guarda el contenido en un archivo."""
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(self.get_text())
             self.modified = False
             self.setModified(False)
@@ -204,7 +214,7 @@ class CodeEditor(QsciScintilla):
     def load_from_file(self, filepath: str) -> bool:
         """Carga contenido desde un archivo."""
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 self.set_content(f.read())
             self.filename = os.path.basename(filepath)
             self._setup_lexer(filepath)
@@ -260,12 +270,12 @@ class CodeEditor(QsciScintilla):
             try:
                 line, index = self.getCursorPosition()
                 text = self.text(line)
-                if text.strip().startswith('#'):
+                if text.strip().startswith("#"):
                     self.setSelection(line, 0, line, len(text))
-                    self.replaceSelectedText(text.lstrip('# '))
+                    self.replaceSelectedText(text.lstrip("# "))
                 else:
                     self.setSelection(line, 0, line, len(text))
-                    self.replaceSelectedText('# ' + text)
+                    self.replaceSelectedText("# " + text)
             except Exception as e:
                 log.debug(f"[CodeEditor] Error comentando: {e}")
 

@@ -5,13 +5,14 @@ TODO el comportamiento del compilador se basa en este archivo.
 Si no existe, se crea automáticamente al analizar un proyecto.
 """
 
-import yaml
-import time
 import hashlib
+import time
 from pathlib import Path
-from typing import Dict, Any, Optional, List
-from watchdog.observers import Observer
+from typing import Any, Dict, List, Optional
+
+import yaml
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from ..utils import logger
 
@@ -34,46 +35,24 @@ class CompiladorConfig:
         },
         "languages": [],  # Lista de lenguajes detectados
         "dependencies": {},  # Dependencias por lenguaje
-        "targets": [
-            {
-                "name": "default",
-                "description": "Compilación por defecto",
-                "steps": []
-            }
-        ],
+        "targets": [{"name": "default", "description": "Compilación por defecto", "steps": []}],
         "cross_compilation": {},  # Targets de compilación cruzada
         "env": {},  # Variables de entorno
-        "ignore": [
-            "__pycache__/",
-            "*.pyc",
-            "dist/",
-            "build/",
-            "target/",
-            "node_modules/"
-        ],
+        "ignore": ["__pycache__/", "*.pyc", "dist/", "build/", "target/", "node_modules/"],
         "analyzer": {
             "max_file_size": 1048576,  # 1MB
             "include_patterns": [],
-            "exclude_patterns": []
+            "exclude_patterns": [],
         },
-        "ai": {
-            "enabled": False,
-            "provider": "plataformia",
-            "model": "agent-xs",
-            "api_key": ""
-        },
-        "build": {
-            "default_target": "default",
-            "output_dir": "dist",
-            "clean_before_build": False
-        },
-        "main_files": [],           # Archivos principales detectados
-        "evidence": [],             # Evidencia recopilada por el analizador
-        "score_breakdown": {},      # Puntuación de intenciones
-        "suggested_config_files": [],           # Archivos de configuración sugeridos
-        "suggested_build_architecture": "",         # Arquitectura de build sugerida
-        "build_plan": [],           # Plan de construcción generado
-        "tools": {},                # Herramientas detectadas por CompilerDetector
+        "ai": {"enabled": False, "provider": "plataformia", "model": "agent-xs", "api_key": ""},
+        "build": {"default_target": "default", "output_dir": "dist", "clean_before_build": False},
+        "main_files": [],  # Archivos principales detectados
+        "evidence": [],  # Evidencia recopilada por el analizador
+        "score_breakdown": {},  # Puntuación de intenciones
+        "suggested_config_files": [],  # Archivos de configuración sugeridos
+        "suggested_build_architecture": "",  # Arquitectura de build sugerida
+        "build_plan": [],  # Plan de construcción generado
+        "tools": {},  # Herramientas detectadas por CompilerDetector
     }
 
     def __init__(self, project_dir: str, auto_create: bool = True):
@@ -100,7 +79,9 @@ class CompiladorConfig:
         if self.config_path.exists():
             self.load()
         elif auto_create:
-            log.info(f"[CompiladorConfig] No existe {self.CONFIG_FILENAME}, creando archivo de configuración...")
+            log.info(
+                f"[CompiladorConfig] No existe {self.CONFIG_FILENAME}, creando archivo de configuración..."
+            )
             self._create_default()
             self.save()
             log.info(f"[CompiladorConfig] ✅ {self.CONFIG_FILENAME} creado en {self.project_dir}")
@@ -111,7 +92,7 @@ class CompiladorConfig:
             return self._create_default()
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 self._hash = hashlib.md5(content.encode()).hexdigest()
                 self.config = yaml.safe_load(content) or {}
@@ -136,13 +117,9 @@ class CompiladorConfig:
         """Guarda la configuración en el archivo .compilador"""
         try:
             content = yaml.dump(
-                self.config,
-                default_flow_style=False,
-                indent=2,
-                allow_unicode=True,
-                sort_keys=False
+                self.config, default_flow_style=False, indent=2, allow_unicode=True, sort_keys=False
             )
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 f.write(content)
             self._hash = hashlib.md5(content.encode()).hexdigest()
             log.debug(f"[CompiladorConfig] Configuración guardada en {self.config_path}")
@@ -157,7 +134,7 @@ class CompiladorConfig:
             return False
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 new_hash = hashlib.md5(content.encode()).hexdigest()
 
@@ -176,7 +153,7 @@ class CompiladorConfig:
 
     def get(self, key: str, default: Any = None) -> Any:
         """Obtiene un valor usando notación con puntos (ej: 'project.name')"""
-        keys = key.split('.')
+        keys = key.split(".")
         value = self.config
         for k in keys:
             if isinstance(value, dict):
@@ -189,7 +166,7 @@ class CompiladorConfig:
 
     def set(self, key: str, value: Any) -> bool:
         """Establece un valor usando notación con puntos"""
-        keys = key.split('.')
+        keys = key.split(".")
         target = self.config
         for k in keys[:-1]:
             if k not in target or not isinstance(target[k], dict):
@@ -206,64 +183,64 @@ class CompiladorConfig:
         result = analyzer_summary.copy()
 
         # Lenguajes detectados
-        if self.get('languages'):
-            result['languages'] = self.get('languages')
-        elif 'languages' in analyzer_summary:
-            result['languages'] = list(analyzer_summary['languages'].keys())
+        if self.get("languages"):
+            result["languages"] = self.get("languages")
+        elif "languages" in analyzer_summary:
+            result["languages"] = list(analyzer_summary["languages"].keys())
 
         # Dependencias
-        deps = self.get('dependencies', {})
+        deps = self.get("dependencies", {})
         if deps:
-            result['dependencies'] = deps
-        elif 'dependencies' in analyzer_summary:
-            result['dependencies'] = list(analyzer_summary['dependencies'])
+            result["dependencies"] = deps
+        elif "dependencies" in analyzer_summary:
+            result["dependencies"] = list(analyzer_summary["dependencies"])
 
         # Tipo de proyecto
-        if self.get('project.type'):
-            result['project_type'] = self.get('project.type')
+        if self.get("project.type"):
+            result["project_type"] = self.get("project.type")
 
         # Nombre del proyecto
-        if self.get('project.name'):
-            result['project_name'] = self.get('project.name')
+        if self.get("project.name"):
+            result["project_name"] = self.get("project.name")
 
         return result
 
     def get_build_targets(self) -> List[Dict]:
         """Obtiene los targets de compilación"""
-        return self.get('targets', [])
+        return self.get("targets", [])
 
     def get_default_target(self) -> str:
         """Obtiene el target por defecto"""
-        return self.get('build.default_target', 'default')
+        return self.get("build.default_target", "default")
 
     def get_languages(self) -> List[Dict]:
         """Obtiene los lenguajes configurados"""
-        return self.get('languages', [])
+        return self.get("languages", [])
 
     def get_ignore_patterns(self) -> List[str]:
         """Obtiene los patrones de ignorar"""
-        return self.get('ignore', [])
+        return self.get("ignore", [])
 
     def is_ai_enabled(self) -> bool:
         """Verifica si la IA está habilitada"""
-        return self.get('ai.enabled', False)
+        return self.get("ai.enabled", False)
 
     def get_ai_config(self) -> Dict:
         """Obtiene la configuración de IA"""
         return {
-            'enabled': self.get('ai.enabled', False),
-            'provider': self.get('ai.provider', 'plataformia'),
-            'model': self.get('ai.model', 'agent-xs'),
-            'api_key': self.get('ai.api_key', ''),
+            "enabled": self.get("ai.enabled", False),
+            "provider": self.get("ai.provider", "plataformia"),
+            "model": self.get("ai.model", "agent-xs"),
+            "api_key": self.get("ai.api_key", ""),
         }
 
     def get_output_dir(self) -> str:
         """Obtiene el directorio de salida"""
-        return self.get('build.output_dir', 'dist')
+        return self.get("build.output_dir", "dist")
 
     def should_clean_before_build(self) -> bool:
         """Verifica si se debe limpiar antes de compilar"""
-        return self.get('build.clean_before_build', False)
+        return self.get("build.clean_before_build", False)
 
     # ── VIGILANCIA ──
 
@@ -289,11 +266,7 @@ class CompiladorConfig:
                             callback(self.parent.config)
 
         self._observer = Observer()
-        self._observer.schedule(
-            ConfigHandler(self),
-            str(self.project_dir),
-            recursive=False
-        )
+        self._observer.schedule(ConfigHandler(self), str(self.project_dir), recursive=False)
         self._observer.start()
         log.info(f"[CompiladorConfig] Vigilando {self.CONFIG_FILENAME} para cambios")
 
@@ -329,29 +302,29 @@ class CompiladorConfig:
         result = analyzer_summary.copy()
 
         # Proyecto
-        if self.get('project.name'):
-            result['project_name'] = self.get('project.name')
-        if self.get('project.type'):
-            result['project_type'] = self.get('project.type')
-        if self.get('project.description'):
-            result['project_description'] = self.get('project.description')
+        if self.get("project.name"):
+            result["project_name"] = self.get("project.name")
+        if self.get("project.type"):
+            result["project_type"] = self.get("project.type")
+        if self.get("project.description"):
+            result["project_description"] = self.get("project.description")
 
         # Lenguajes
-        if self.get('languages'):
-            result['languages'] = self.get('languages')
-        elif 'languages' in analyzer_summary and isinstance(analyzer_summary['languages'], dict):
-            result['languages'] = list(analyzer_summary['languages'].keys())
+        if self.get("languages"):
+            result["languages"] = self.get("languages")
+        elif "languages" in analyzer_summary and isinstance(analyzer_summary["languages"], dict):
+            result["languages"] = list(analyzer_summary["languages"].keys())
 
         # Dependencias
-        deps = self.get('dependencies', {})
+        deps = self.get("dependencies", {})
         if deps:
-            result['dependencies'] = deps
-        elif 'dependencies' in analyzer_summary:
-            result['dependencies'] = list(analyzer_summary['dependencies'])
+            result["dependencies"] = deps
+        elif "dependencies" in analyzer_summary:
+            result["dependencies"] = list(analyzer_summary["dependencies"])
 
         # Targets
-        if self.get('targets'):
-            result['targets'] = self.get('targets')
+        if self.get("targets"):
+            result["targets"] = self.get("targets")
 
         return result
 
@@ -359,35 +332,35 @@ class CompiladorConfig:
         """
         Obtiene el comando de compilación para un lenguaje desde .compilador.
         """
-        targets = self.get('targets', [])
-        default_target = self.get('build.default_target', 'default')
+        targets = self.get("targets", [])
+        default_target = self.get("build.default_target", "default")
 
         for target in targets:
-            if target.get('name') == default_target:
-                for step in target.get('steps', []):
-                    if step.get('language') == language:
-                        return step.get('command')
+            if target.get("name") == default_target:
+                for step in target.get("steps", []):
+                    if step.get("language") == language:
+                        return step.get("command")
         return None
 
     def get_env_vars(self) -> Dict[str, str]:
         """Obtiene las variables de entorno desde .compilador"""
-        return self.get('env', {})
+        return self.get("env", {})
 
     def get_build_steps(self) -> List[Dict]:
         """Obtiene todos los pasos de build desde .compilador"""
-        targets = self.get('targets', [])
-        default_target = self.get('build.default_target', 'default')
+        targets = self.get("targets", [])
+        default_target = self.get("build.default_target", "default")
 
         for target in targets:
-            if target.get('name') == default_target:
-                return target.get('steps', [])
+            if target.get("name") == default_target:
+                return target.get("steps", [])
         return []
 
     def should_build_parallel(self) -> bool:
-        return self.get('build.parallel', False)
+        return self.get("build.parallel", False)
 
     def get_cross_compilation_targets(self) -> Dict:
-        return self.get('cross_compilation', {})
+        return self.get("cross_compilation", {})
 
     # compilador_config.py - Añadir método
 
@@ -408,13 +381,17 @@ Basándote en el análisis (evidence, score_breakdown, suggested_config_files), 
 
 Responde en formato YAML con la configuración mejorada.
 """
-        response = ai_client.chat(messages=[
-                            {"role": "system", "content": "Eres un experto en desarrollo de software. Responde SOLO en formato YAML."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.2,
-                        max_tokens=5000,  # Aumentado para respuesta completa
-                        )
+        response = ai_client.chat(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un experto en desarrollo de software. Responde SOLO en formato YAML.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            max_tokens=5000,  # Aumentado para respuesta completa
+        )
         if response:
             try:
                 improved_config = yaml.safe_load(response)

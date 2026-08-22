@@ -5,13 +5,20 @@ Permite abrir, editar y guardar cualquier archivo.
 """
 
 import os
+
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog,
-    QMessageBox, QLabel, QLineEdit
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
 )
 
-from .editor_widget import CodeEditor
 from ...utils import logger
+from .editor_widget import CodeEditor
 
 log = logger.Logger()
 
@@ -78,10 +85,7 @@ class EditorDialog(QDialog):
     def browse_file(self):
         """Abre diálogo para seleccionar archivo."""
         filepath, _ = QFileDialog.getOpenFileName(
-            self,
-            "Seleccionar archivo",
-            "",
-            "Todos los archivos (*.*)"
+            self, "Seleccionar archivo", "", "Todos los archivos (*.*)"
         )
         if filepath:
             self.load_file(filepath)
@@ -111,10 +115,7 @@ class EditorDialog(QDialog):
     def save_as_file(self):
         """Guarda el archivo con otro nombre."""
         filepath, _ = QFileDialog.getSaveFileName(
-            self,
-            "Guardar archivo como",
-            self.current_file or "",
-            "Todos los archivos (*.*)"
+            self, "Guardar archivo como", self.current_file or "", "Todos los archivos (*.*)"
         )
         if filepath:
             self.current_file = filepath
@@ -128,7 +129,7 @@ class EditorDialog(QDialog):
                 self,
                 "Cambios sin guardar",
                 "Hay cambios sin guardar. ¿Deseas guardarlos?",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
             )
             if reply == QMessageBox.Yes:
                 self.save_file()

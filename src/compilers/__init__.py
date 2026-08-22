@@ -2,4 +2,4 @@
 from .base import CompilerStrategy
 from .registry import CompilerRegistry
 
-__all__ = ['CompilerStrategy', 'CompilerRegistry']
+__all__ = ["CompilerStrategy", "CompilerRegistry"]

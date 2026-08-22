@@ -35,5 +35,5 @@ OUTPUT_TYPE_MAP = {
     "Go binary": "go-bin",
     "Rust binary": "rust-bin",
     "Cargo release binary": "cargo-release",
-    "Static site (dist folder)": "static-dist"
+    "Static site (dist folder)": "static-dist",
 }

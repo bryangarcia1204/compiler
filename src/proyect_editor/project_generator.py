@@ -3,15 +3,15 @@
 Módulo para generar archivos de configuración usando plantillas o IA.
 """
 
-import os
-import json
 import copy
-from typing import Dict, Optional, Any, Counter
+import json
+import os
+from typing import Any, Counter, Dict, Optional
 
-from .template_loader import TemplateLoader
-from ..utils.ai_client import AIClient
-from ..utils import logger
 from ..compilers.registry import CompilerRegistry
+from ..utils import logger
+from ..utils.ai_client import AIClient
+from .template_loader import TemplateLoader
 
 log = logger.Logger()
 
@@ -24,11 +24,22 @@ class ProjectGenerator:
 
     # Mapeo de extensiones a tipos de proyecto (para fallback)
     EXTENSION_MAP = {
-        '.c': 'c', '.cpp': 'cpp', '.cc': 'cpp', '.cxx': 'cpp',
-        '.h': 'c', '.hpp': 'cpp', '.hxx': 'cpp',
-        '.rs': 'rust', '.go': 'go', '.py': 'python',
-        '.js': 'node', '.ts': 'node', '.java': 'java',
-        '.cs': 'dotnet', '.fs': 'dotnet', '.vb': 'dotnet',
+        ".c": "c",
+        ".cpp": "cpp",
+        ".cc": "cpp",
+        ".cxx": "cpp",
+        ".h": "c",
+        ".hpp": "cpp",
+        ".hxx": "cpp",
+        ".rs": "rust",
+        ".go": "go",
+        ".py": "python",
+        ".js": "node",
+        ".ts": "node",
+        ".java": "java",
+        ".cs": "dotnet",
+        ".fs": "dotnet",
+        ".vb": "dotnet",
     }
 
     def __init__(
@@ -37,7 +48,7 @@ class ProjectGenerator:
         provider: str = "deepseek",
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ):
         self.use_ai = use_ai
         self.provider = provider
@@ -57,7 +68,9 @@ class ProjectGenerator:
     # ──────────────────────────────────────────────────────────
     # 1. GENERACIÓN DE ARCHIVOS (PUNTO DE ENTRADA)
     # ──────────────────────────────────────────────────────────
-    def generate_config_files(self, project_info: Dict, custom_prompt: str = "", targets: list[str] = ['native']) -> Dict[str, str]:
+    def generate_config_files(
+        self, project_info: Dict, custom_prompt: str = "", targets: list[str] = ["native"]
+    ) -> Dict[str, str]:
         """
         Genera archivos de configuración usando plantillas o IA.
 
@@ -69,13 +82,19 @@ class ProjectGenerator:
             Dict con {nombre_archivo: contenido}
         """
         # Extraer información del proyecto
-        language = project_info.get('main_language') or project_info.get('language') or project_info.get('type', 'python')
-        project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
-        project_type = project_info.get('project_type', 'application')
+        language = (
+            project_info.get("main_language")
+            or project_info.get("language")
+            or project_info.get("type", "python")
+        )
+        project_name = os.path.basename(project_info.get("project_dir", "mi_proyecto"))
+        project_type = project_info.get("project_type", "application")
 
         # Usar IA si está disponible y hay prompt personalizado
         if self.use_ai and self.ai_client:
-            log.info(f"[ProjectGenerator] Generando con IA para {language} (proyecto: {project_name})")
+            log.info(
+                f"[ProjectGenerator] Generando con IA para {language} (proyecto: {project_name})"
+            )
 
             # Generar con IA
             result = self._generate_with_ai(language, custom_prompt, project_info, targets)
@@ -84,7 +103,7 @@ class ProjectGenerator:
 
         # 2. Archivos adicionales multi-target (plugins)
         if targets is None:
-            targets = ['native']
+            targets = ["native"]
 
         # Obtener todas las estrategias registradas (builtins + plugins)
         all_strategies = CompilerRegistry.get_all()
@@ -93,21 +112,29 @@ class ProjectGenerator:
             for strategy_class in all_strategies.values():
                 strategy = strategy_class()
                 # Verificar si soporta las extensiones del proyecto
-                ext = '.' + language if language else ''
+                ext = "." + language if language else ""
                 if ext in strategy.supported_extensions:
-                    if hasattr(strategy, 'generate_config_files'):
+                    if hasattr(strategy, "generate_config_files"):
                         return strategy.generate_config_files(project_info, target)
 
         return self._generate_with_templates(language, project_name, project_type, project_info)
 
-    def _generate_with_ai(self, language: str, custom_prompt: str = None, project_info: Dict = None, targets: list[str] = ['native']) -> Dict[str, str]:
+    def _generate_with_ai(
+        self,
+        language: str,
+        custom_prompt: str = None,
+        project_info: Dict = None,
+        targets: list[str] = ["native"],
+    ) -> Dict[str, str]:
         """Genera archivos usando el AIClient. Recibe TODO el project_info."""
         if not self.ai_client:
             log.warning("[ProjectGenerator] AIClient no disponible, usando plantillas")
             return {}
 
         # Preparar el resumen completo para la IA
-        summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=True) if project_info else {}
+        summary_for_ai = (
+            self._prepare_summary_for_ai(project_info, include_content=True) if project_info else {}
+        )
 
         # Construir prompt con datos completos
         prompt = f"""
@@ -137,20 +164,25 @@ class ProjectGenerator:
 
             response = self.ai_client.chat(
                 messages=[
-                    {"role": "system", "content": "Eres un experto en generación de archivos de configuración. Responde con el formato solicitado."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Eres un experto en generación de archivos de configuración. Responde con el formato solicitado.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.2,
                 max_tokens=2000,
-                **kwargs
+                **kwargs,
             )
 
             if response:
-                log.debug(f"[ProjectGenerator] Respuesta IA (primeros 300 chars): {response[:300]}...")
+                log.debug(
+                    f"[ProjectGenerator] Respuesta IA (primeros 300 chars): {response[:300]}..."
+                )
                 return self._parse_ai_response(response, language)
 
             if targets is None:
-                targets = ['native']
+                targets = ["native"]
 
             # Obtener todas las estrategias registradas (builtins + plugins)
             all_strategies = CompilerRegistry.get_all()
@@ -159,9 +191,9 @@ class ProjectGenerator:
                 for strategy_class in all_strategies.values():
                     strategy = strategy_class()
                     # Verificar si soporta las extensiones del proyecto
-                    ext = '.' + language if language else ''
+                    ext = "." + language if language else ""
                     if ext in strategy.supported_extensions:
-                        if hasattr(strategy, 'generate_config_files'):
+                        if hasattr(strategy, "generate_config_files"):
                             return strategy.generate_config_files(project_info, target)
 
         except Exception as e:
@@ -171,8 +203,9 @@ class ProjectGenerator:
     def _parse_ai_response(self, content: str, language: str) -> Dict[str, str]:
         """Parsea la respuesta de la IA en un diccionario de archivos."""
         import re
+
         result = {}
-        pattern = r'---\s*([A-Za-z0-9_.-]+)\s*---\s*([\s\S]*?)\s*---\s*FIN\s*---'
+        pattern = r"---\s*([A-Za-z0-9_.-]+)\s*---\s*([\s\S]*?)\s*---\s*FIN\s*---"
         matches = re.findall(pattern, content)
 
         for filename, file_content in matches:
@@ -187,7 +220,9 @@ class ProjectGenerator:
     # ──────────────────────────────────────────────────────────
     # 3. GENERACIÓN CON PLANTILLAS (COMPLETO)
     # ──────────────────────────────────────────────────────────
-    def _generate_with_templates(self, language: str, project_name: str, project_type: str, project_info: Dict) -> Dict[str, str]:
+    def _generate_with_templates(
+        self, language: str, project_name: str, project_type: str, project_info: Dict
+    ) -> Dict[str, str]:
         """Genera archivos usando plantillas predefinidas del TemplateLoader."""
         result = self.template_loader.generate_with_templates(
             language=language,
@@ -196,63 +231,71 @@ class ProjectGenerator:
 
         # Si no hay plantillas para ese lenguaje, usar fallback específico
         if not result:
-            result = self._generate_fallback_templates(language, project_name, project_type, project_info)
+            result = self._generate_fallback_templates(
+                language, project_name, project_type, project_info
+            )
 
         return result
 
     # ──────────────────────────────────────────────────────────
     # 4. PLANTILLAS DE FALLBACK (ESPECÍFICAS POR LENGUAJE)
     # ──────────────────────────────────────────────────────────
-    def _generate_fallback_templates(self, language: str, project_name: str, project_type: str, project_info: Dict) -> Dict[str, str]:
+    def _generate_fallback_templates(
+        self, language: str, project_name: str, project_type: str, project_info: Dict
+    ) -> Dict[str, str]:
         """Genera plantillas de respaldo cuando no hay plantillas específicas en TemplateLoader."""
         result = {}
 
         # Obtener archivos fuente
-        source_files = project_info.get('source_files', [])
-        main_files = project_info.get('main_files', [])
+        source_files = project_info.get("source_files", [])
+        main_files = project_info.get("main_files", [])
         main_file = main_files[0] if main_files else None
 
         # Detectar si hay archivos C/C++
-        has_cpp = any(f.get('language') in ('c', 'cpp', 'c++') for f in source_files)
+        has_cpp = any(f.get("language") in ("c", "cpp", "c++") for f in source_files)
 
         # ── PYTHON ──
-        if language == 'python':
-            result['requirements.txt'] = self._make_requirements_txt(project_info)
-            if has_cpp or project_type == 'binary_extension':
-                result['setup.py'] = self._make_setup_py(project_name, project_info)
-            result['.gitignore'] = self._make_gitignore('python')
+        if language == "python":
+            result["requirements.txt"] = self._make_requirements_txt(project_info)
+            if has_cpp or project_type == "binary_extension":
+                result["setup.py"] = self._make_setup_py(project_name, project_info)
+            result[".gitignore"] = self._make_gitignore("python")
 
         # ── RUST ──
-        elif language == 'rust':
-            result['Cargo.toml'] = self._make_cargo_toml(project_name, project_info)
-            result['.gitignore'] = self._make_gitignore('rust')
+        elif language == "rust":
+            result["Cargo.toml"] = self._make_cargo_toml(project_name, project_info)
+            result[".gitignore"] = self._make_gitignore("rust")
 
         # ── GO ──
-        elif language == 'go':
-            result['go.mod'] = self._make_go_mod(project_name, project_info)
-            result['.gitignore'] = self._make_gitignore('go')
+        elif language == "go":
+            result["go.mod"] = self._make_go_mod(project_name, project_info)
+            result[".gitignore"] = self._make_gitignore("go")
 
         # ── C/C++ ──
-        elif language in ('c', 'cpp', 'c++') and language != 'python' and project_type != 'binary_extension':
-            result['Makefile'] = self._make_makefile(project_name, language, main_file)
-            result['.gitignore'] = self._make_gitignore('c')
+        elif (
+            language in ("c", "cpp", "c++")
+            and language != "python"
+            and project_type != "binary_extension"
+        ):
+            result["Makefile"] = self._make_makefile(project_name, language, main_file)
+            result[".gitignore"] = self._make_gitignore("c")
             if has_cpp:
-                result['CMakeLists.txt'] = self._make_cmake(project_name, language)
+                result["CMakeLists.txt"] = self._make_cmake(project_name, language)
 
         # ── JAVA ──
-        elif language == 'java':
-            result['pom.xml'] = self._make_pom_xml(project_name, project_info)
-            result['.gitignore'] = self._make_gitignore('java')
+        elif language == "java":
+            result["pom.xml"] = self._make_pom_xml(project_name, project_info)
+            result[".gitignore"] = self._make_gitignore("java")
 
         # ── NODE.JS ──
-        elif language == 'node':
-            result['package.json'] = self._make_package_json(project_name, main_file)
-            result['.gitignore'] = self._make_gitignore('node')
+        elif language == "node":
+            result["package.json"] = self._make_package_json(project_name, main_file)
+            result[".gitignore"] = self._make_gitignore("node")
 
         # ── C# / .NET ──
-        elif language == 'dotnet':
-            result[f'{project_name}.csproj'] = self._make_csproj(project_name)
-            result['.gitignore'] = self._make_gitignore('dotnet')
+        elif language == "dotnet":
+            result[f"{project_name}.csproj"] = self._make_csproj(project_name)
+            result[".gitignore"] = self._make_gitignore("dotnet")
 
         return result
 
@@ -260,18 +303,20 @@ class ProjectGenerator:
     # 5. PLANTILLAS INDIVIDUALES
     # ──────────────────────────────────────────────────────────
     def _make_requirements_txt(self, info: Dict) -> str:
-        deps = list(info.get('dependencies', set()))[:10]
-        lines = ['# Dependencias del proyecto', '# Generado por Compilador Profesional', '']
+        deps = list(info.get("dependencies", set()))[:10]
+        lines = ["# Dependencias del proyecto", "# Generado por Compilador Profesional", ""]
         if deps:
             lines.extend(deps)
         else:
-            lines.extend(['# Añade aquí tus dependencias', '', '# Ejemplo:', '# numpy>=1.21.0'])
-        return '\n'.join(lines)
+            lines.extend(["# Añade aquí tus dependencias", "", "# Ejemplo:", "# numpy>=1.21.0"])
+        return "\n".join(lines)
 
     def _make_setup_py(self, name: str, info: Dict) -> str:
-        has_cpp = any(f.get('language') in ('c', 'cpp', 'c++') for f in info.get('source_files', []))
+        has_cpp = any(
+            f.get("language") in ("c", "cpp", "c++") for f in info.get("source_files", [])
+        )
         if has_cpp:
-            return f'''from setuptools import setup, Extension
+            return f"""from setuptools import setup, Extension
 import pybind11
 
 ext_module = Extension(
@@ -288,8 +333,8 @@ setup(
     ext_modules=[ext_module],
     install_requires=['pybind11>=3.1'],
 )
-'''
-        return f'''from setuptools import setup, find_packages
+"""
+        return f"""from setuptools import setup, find_packages
 
 setup(
     name='{name}',
@@ -300,12 +345,12 @@ setup(
     install_requires=[],
     python_requires='>=3.8',
 )
-'''
+"""
 
     def _make_cargo_toml(self, name: str, info: Dict) -> str:
-        deps = list(info.get('dependencies', set()))[:5]
-        dep_lines = '\n'.join(f'    "{dep}" = "latest"' for dep in deps if dep not in ['std'])
-        return f'''[package]
+        deps = list(info.get("dependencies", set()))[:5]
+        dep_lines = "\n".join(f'    "{dep}" = "latest"' for dep in deps if dep not in ["std"])
+        return f"""[package]
 name = "{name}"
 version = "0.1.0"
 edition = "2021"
@@ -316,23 +361,23 @@ edition = "2021"
 [[bin]]
 name = "{name}"
 path = "src/main.rs"
-'''
+"""
 
     def _make_go_mod(self, name: str, info: Dict) -> str:
-        return f'''module {name}
+        return f"""module {name}
 
 go 1.21
 
 require (
     # Añade aquí tus dependencias
 )
-'''
+"""
 
     def _make_makefile(self, name: str, language: str, main_file: Optional[str]) -> str:
-        compiler = 'g++' if language in ['cpp', 'c++'] else 'gcc'
-        standard = '-std=c++17' if language in ['cpp', 'c++'] else '-std=c11'
-        src = os.path.basename(main_file) if main_file else f'src/main.{language}'
-        return f'''# Makefile para proyecto {language.upper()}
+        compiler = "g++" if language in ["cpp", "c++"] else "gcc"
+        standard = "-std=c++17" if language in ["cpp", "c++"] else "-std=c11"
+        src = os.path.basename(main_file) if main_file else f"src/main.{language}"
+        return f"""# Makefile para proyecto {language.upper()}
 # Generado por Compilador Profesional
 
 {compiler.upper()} = {compiler}
@@ -358,12 +403,12 @@ run: $(TARGET)
 \t./$(TARGET)
 
 .PHONY: all clean run
-'''
+"""
 
     def _make_cmake(self, name: str, language: str) -> str:
-        standard = '17' if language in ['cpp', 'c++'] else '11'
+        standard = "17" if language in ["cpp", "c++"] else "11"
         source = "{SOURCES}"
-        return f'''cmake_minimum_required(VERSION 3.10)
+        return f"""cmake_minimum_required(VERSION 3.10)
 
 project({name} VERSION 0.1.0)
 
@@ -375,11 +420,11 @@ file(GLOB SOURCES "src/*.{language}")
 add_executable({name} ${source})
 
 target_include_directories({name} PRIVATE include)
-'''
+"""
 
     def _make_pom_xml(self, name: str, info: Dict) -> str:
-        group_id = os.path.basename(info.get('project_dir', 'com.example'))
-        return f'''<?xml version="1.0" encoding="UTF-8"?>
+        group_id = os.path.basename(info.get("project_dir", "com.example"))
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -412,11 +457,11 @@ target_include_directories({name} PRIVATE include)
         </plugins>
     </build>
 </project>
-'''
+"""
 
     def _make_package_json(self, name: str, main_file: Optional[str]) -> str:
-        main = os.path.basename(main_file) if main_file else 'index.js'
-        return f'''{{
+        main = os.path.basename(main_file) if main_file else "index.js"
+        return f"""{{
   "name": "{name}",
   "version": "1.0.0",
   "description": "Descripción del proyecto",
@@ -428,10 +473,10 @@ target_include_directories({name} PRIVATE include)
   "dependencies": {{}},
   "devDependencies": {{}}
 }}
-'''
+"""
 
     def _make_csproj(self, name: str) -> str:
-        return f'''<Project Sdk="Microsoft.NET.Sdk">
+        return f"""<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -440,11 +485,11 @@ target_include_directories({name} PRIVATE include)
     <RootNamespace>{name}</RootNamespace>
   </PropertyGroup>
 </Project>
-'''
+"""
 
     def _make_gitignore(self, lang: str) -> str:
         templates = {
-            'python': """__pycache__/
+            "python": """__pycache__/
 *.py[cod]
 *.so
 *.pyd
@@ -461,16 +506,16 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 """,
-            'rust': """target/
+            "rust": """target/
 Cargo.lock
 *.rs.bk
 """,
-            'go': """*.exe
+            "go": """*.exe
 *.test
 *.out
 vendor/
 """,
-            'c': """*.o
+            "c": """*.o
 *.obj
 *.exe
 *.out
@@ -480,7 +525,7 @@ vendor/
 *.lib
 build/
 """,
-            'java': """*.class
+            "java": """*.class
 *.jar
 *.war
 *.ear
@@ -488,34 +533,35 @@ target/
 .idea/
 *.iml
 """,
-            'node': """node_modules/
+            "node": """node_modules/
 npm-debug.log
 yarn-error.log
 package-lock.json
 yarn.lock
 .env
 """,
-            'dotnet': """bin/
+            "dotnet": """bin/
 obj/
 *.user
 *.suo
-"""
+""",
         }
-        return templates.get(lang, """# .gitignore generado por Compilador Profesional
+        return templates.get(
+            lang,
+            """# .gitignore generado por Compilador Profesional
 *.log
 *.tmp
 .DS_Store
 Thumbs.db
-""")
+""",
+        )
+
     # ──────────────────────────────────────────────────────────
     # 6. MEJORA DE ARCHIVOS CON IA
     # ──────────────────────────────────────────────────────────
 
     def enhance_files_with_ai(
-        self,
-        project_info: Dict,
-        existing_files: Dict[str, str],
-        custom_prompt: str = ""
+        self, project_info: Dict, existing_files: Dict[str, str], custom_prompt: str = ""
     ) -> Dict[str, Any]:
         """
         Mejora archivos de configuración con IA y genera método de compilación.
@@ -523,16 +569,18 @@ Thumbs.db
         """
         if not self.ai_client or not self.ai_client.client:
             log.warning("[ProjectGenerator] IA no disponible para mejorar archivos")
-            return {'files': existing_files, 'build_command': None}
+            return {"files": existing_files, "build_command": None}
 
         # Preparar una copia de project_info sin contenido de archivos (ya tenemos existing_files)
         summary_for_ai = self._prepare_summary_for_ai(project_info, include_content=True)
 
         # Preparar archivos existentes con contenido completo
-        existing_files_str = "\n".join([
-            f"--- {name} ---\n{content[:3000]}\n--- FIN ---"
-            for name, content in list(existing_files.items())[:5]
-        ])
+        existing_files_str = "\n".join(
+            [
+                f"--- {name} ---\n{content[:3000]}\n--- FIN ---"
+                for name, content in list(existing_files.items())[:5]
+            ]
+        )
 
         prompt = f"""Eres un experto en desarrollo de software. Revisa TODOS los datos del proyecto y mejora los archivos de configuración.
 
@@ -572,17 +620,20 @@ Thumbs.db
 
             response = self.ai_client.chat(
                 messages=[
-                    {"role": "system", "content": "Eres un experto en desarrollo de software. Responde SOLO en formato JSON."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Eres un experto en desarrollo de software. Responde SOLO en formato JSON.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.2,
                 max_tokens=5000,  # Aumentado para respuesta completa
-                **kwargs
+                **kwargs,
             )
 
             if not response:
                 log.warning("[ProjectGenerator] No se recibió respuesta de IA")
-                return {'files': existing_files, 'build_command': None}
+                return {"files": existing_files, "build_command": None}
 
             log.debug(f"[ProjectGenerator] Respuesta IA: {response}")
 
@@ -591,30 +642,34 @@ Thumbs.db
             if not cleaned:
                 log.warning("[ProjectGenerator] No se pudo extraer JSON de la respuesta")
                 log.debug(f"[ProjectGenerator] Respuesta completa: {response}")
-                return {'files': existing_files, 'build_command': None}
+                return {"files": existing_files, "build_command": None}
 
             result = json.loads(cleaned)
             return {
-                'files': result.get('files', existing_files),
-                'build_command': result.get('build_command'),
-                'build_description': result.get('build_command', {}).get('description', 'Comando generado por IA')
+                "files": result.get("files", existing_files),
+                "build_command": result.get("build_command"),
+                "build_description": result.get("build_command", {}).get(
+                    "description", "Comando generado por IA"
+                ),
             }
 
         except json.JSONDecodeError as e:
             log.error(f"[ProjectGenerator] Error parseando JSON: {e}")
-            log.debug(f"[ProjectGenerator] Respuesta que falló: {response[:500] if response else 'None'}")
-            return {'files': existing_files, 'build_command': None}
+            log.debug(
+                f"[ProjectGenerator] Respuesta que falló: {response[:500] if response else 'None'}"
+            )
+            return {"files": existing_files, "build_command": None}
         except Exception as e:
             log.error(f"[ProjectGenerator] Error mejorando archivos con IA: {e}")
-            return {'files': existing_files, 'build_command': None}
+            return {"files": existing_files, "build_command": None}
 
     def _extract_json_from_response(self, response: str) -> Optional[str]:
         """
         Extrae un objeto JSON de una respuesta de IA.
         Maneja respuestas en bloque ```json``` o JSON directo.
         """
-        import re
         import json
+        import re
 
         if not response:
             return None
@@ -630,7 +685,7 @@ Thumbs.db
             pass
 
         # 3. Buscar JSON entre ```json y ```
-        json_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+        json_block = re.search(r"```json\s*([\s\S]*?)\s*```", response)
         if json_block:
             try:
                 content = json_block.group(1).strip()
@@ -640,7 +695,7 @@ Thumbs.db
                 pass
 
         # 4. Buscar JSON entre ``` y ```
-        code_block = re.search(r'```\s*([\s\S]*?)\s*```', response)
+        code_block = re.search(r"```\s*([\s\S]*?)\s*```", response)
         if code_block:
             try:
                 content = code_block.group(1).strip()
@@ -658,19 +713,19 @@ Thumbs.db
         for i, char in enumerate(response):
             if char == '"' and not escape:
                 in_string = not in_string
-            elif char == '\\' and not escape:
+            elif char == "\\" and not escape:
                 escape = True
                 continue
 
             if not in_string:
-                if char == '{':
+                if char == "{":
                     if brace_count == 0:
                         start = i
                     brace_count += 1
-                elif char == '}':
+                elif char == "}":
                     brace_count -= 1
                     if brace_count == 0 and start != -1:
-                        candidate = response[start:i+1]
+                        candidate = response[start: i + 1]
                         try:
                             json.loads(candidate)
                             return candidate
@@ -683,29 +738,31 @@ Thumbs.db
         log.debug(f"[ProjectGenerator] No se pudo extraer JSON de la respuesta: {response}")
         return None
 
-    def _prepare_summary_for_ai(self, project_info: Dict, include_content: bool = False, max_content_size: int = 2000) -> Dict:
+    def _prepare_summary_for_ai(
+        self, project_info: Dict, include_content: bool = False, max_content_size: int = 2000
+    ) -> Dict:
         """
         Prepara una copia de project_info para enviar a la IA.
         """
         summary_copy = copy.deepcopy(project_info)
 
         # Convertir sets a listas
-        if 'dependencies' in summary_copy:
-            summary_copy['dependencies'] = list(summary_copy['dependencies'])
-        if 'imports' in summary_copy:
-            summary_copy['imports'] = {k: list(v) for k, v in summary_copy['imports'].items()}
-        if 'exports' in summary_copy:
-            summary_copy['exports'] = {k: list(v) for k, v in summary_copy['exports'].items()}
-        if 'languages' in summary_copy and isinstance(summary_copy['languages'], Counter):
-            summary_copy['languages'] = dict(summary_copy['languages'])
+        if "dependencies" in summary_copy:
+            summary_copy["dependencies"] = list(summary_copy["dependencies"])
+        if "imports" in summary_copy:
+            summary_copy["imports"] = {k: list(v) for k, v in summary_copy["imports"].items()}
+        if "exports" in summary_copy:
+            summary_copy["exports"] = {k: list(v) for k, v in summary_copy["exports"].items()}
+        if "languages" in summary_copy and isinstance(summary_copy["languages"], Counter):
+            summary_copy["languages"] = dict(summary_copy["languages"])
 
         # Manejar archivos
-        for file_entry in summary_copy.get('files', []):
-            if include_content and file_entry.get('content'):
-                content = file_entry['content']
+        for file_entry in summary_copy.get("files", []):
+            if include_content and file_entry.get("content"):
+                content = file_entry["content"]
                 if len(content) > max_content_size:
-                    file_entry['content'] = content[:max_content_size] + "\n... (truncado)"
+                    file_entry["content"] = content[:max_content_size] + "\n... (truncado)"
             else:
-                file_entry.pop('content', None)
+                file_entry.pop("content", None)
 
         return summary_copy

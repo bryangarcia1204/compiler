@@ -6,19 +6,21 @@ Soporta análisis de proyectos, generación de archivos de configuración y mejo
 """
 
 import argparse
-import sys
-import os
 import json
+import os
+import sys
+
 import yaml
+
+from ..config.compilador_config import CompiladorConfig
 from ..detector.compiler_detector import CompilerDetector
 from ..engine.compilation_engine import CompilationEngine
+from ..plugins_market.plugin_loader import PluginLoader
+from ..plugins_market.plugin_manager import PluginManager
 from ..proyect_editor.project_analyzer import ProjectAnalyzer
 from ..proyect_editor.project_generator import ProjectGenerator
-from ..utils.output_types import OUTPUT_TYPE_MAP
 from ..utils import logger
-from ..config.compilador_config import CompiladorConfig
-from ..plugins_market.plugin_manager import PluginManager
-from ..plugins_market.plugin_loader import PluginLoader
+from ..utils.output_types import OUTPUT_TYPE_MAP
 
 log = logger.Logger()
 
@@ -26,164 +28,212 @@ log = logger.Logger()
 def main():
     parser = argparse.ArgumentParser(
         description="Compilador/Empaquetador Profesional - CLI",
-        epilog="Usa 'compilador-cli <comando> --help' para más información."
+        epilog="Usa 'compilador-cli <comando> --help' para más información.",
     )
-    subparsers = parser.add_subparsers(dest='command', required=True, help='Comando a ejecutar')
+    subparsers = parser.add_subparsers(dest="command", required=True, help="Comando a ejecutar")
 
     # ── list-tools ──
-    subparsers.add_parser('list-tools', help='Lista las herramientas detectadas en el sistema')
+    subparsers.add_parser("list-tools", help="Lista las herramientas detectadas en el sistema")
 
     # ── init ──
-    parser_init = subparsers.add_parser('init', help='Inicializa un proyecto con .compilador')
-    parser_init.add_argument('directory', nargs='?', default='.', help='Directorio del proyecto')
+    parser_init = subparsers.add_parser("init", help="Inicializa un proyecto con .compilador")
+    parser_init.add_argument("directory", nargs="?", default=".", help="Directorio del proyecto")
 
     # ── config ──
-    parser_config = subparsers.add_parser('config', help='Muestra o edita la configuración .compilador')
-    parser_config.add_argument('directory', help='Directorio del proyecto a analizar')
-    parser_config.add_argument('--show', '-sh', action='store_true', help='Muestra la configuración actual')
-    parser_config.add_argument('--set', '-s', nargs=2, metavar=('KEY', 'VALUE'), help='Establece un valor')
+    parser_config = subparsers.add_parser(
+        "config", help="Muestra o edita la configuración .compilador"
+    )
+    parser_config.add_argument("directory", help="Directorio del proyecto a analizar")
+    parser_config.add_argument(
+        "--show", "-sh", action="store_true", help="Muestra la configuración actual"
+    )
+    parser_config.add_argument(
+        "--set", "-s", nargs=2, metavar=("KEY", "VALUE"), help="Establece un valor"
+    )
 
     # ── analyze ──
-    parser_analyze = subparsers.add_parser('analyze', help='Analiza un proyecto y muestra un resumen')
-    parser_analyze.add_argument('directory', help='Directorio del proyecto a analizar')
-    parser_analyze.add_argument('--ai', action='store_true', help='Usar IA para mejorar el análisis')
-    parser_analyze.add_argument('--provider', default='plataformia', help='Proveedor de IA (plataformia, deepseek, openai, groq, tinyllama)')
-    parser_analyze.add_argument('--model', help='Modelo de IA a usar')
-    parser_analyze.add_argument('--api-key', help='API Key para el proveedor de IA')
-    parser_analyze.add_argument('--output', '-o', help='Guardar el análisis en un archivo JSON')
+    parser_analyze = subparsers.add_parser(
+        "analyze", help="Analiza un proyecto y muestra un resumen"
+    )
+    parser_analyze.add_argument("directory", help="Directorio del proyecto a analizar")
+    parser_analyze.add_argument(
+        "--ai", action="store_true", help="Usar IA para mejorar el análisis"
+    )
+    parser_analyze.add_argument(
+        "--provider",
+        default="plataformia",
+        help="Proveedor de IA (plataformia, deepseek, openai, groq, tinyllama)",
+    )
+    parser_analyze.add_argument("--model", help="Modelo de IA a usar")
+    parser_analyze.add_argument("--api-key", help="API Key para el proveedor de IA")
+    parser_analyze.add_argument("--output", "-o", help="Guardar el análisis en un archivo JSON")
 
     # ── generate ──
-    parser_generate = subparsers.add_parser('generate', help='Genera archivos de configuración para un proyecto')
-    parser_generate.add_argument('directory', help='Directorio del proyecto')
-    parser_generate.add_argument('--ai', action='store_true', help='Usar IA para generar archivos')
-    parser_generate.add_argument('--provider', default='plataformia', help='Proveedor de IA')
-    parser_generate.add_argument('--model', help='Modelo de IA')
-    parser_generate.add_argument('--api-key', help='API Key para el proveedor')
-    parser_generate.add_argument('--prompt', help='Prompt personalizado para la IA')
+    parser_generate = subparsers.add_parser(
+        "generate", help="Genera archivos de configuración para un proyecto"
+    )
+    parser_generate.add_argument("directory", help="Directorio del proyecto")
+    parser_generate.add_argument("--ai", action="store_true", help="Usar IA para generar archivos")
+    parser_generate.add_argument("--provider", default="plataformia", help="Proveedor de IA")
+    parser_generate.add_argument("--model", help="Modelo de IA")
+    parser_generate.add_argument("--api-key", help="API Key para el proveedor")
+    parser_generate.add_argument("--prompt", help="Prompt personalizado para la IA")
 
     # ── enhance ──
-    parser_enhance = subparsers.add_parser('enhance', help='Mejora archivos de configuración con IA')
-    parser_enhance.add_argument('directory', help='Directorio del proyecto')
-    parser_enhance.add_argument('--ai', action='store_true', help='Usar IA para mejorar archivos')
-    parser_enhance.add_argument('--provider', default='plataformia', help='Proveedor de IA')
-    parser_enhance.add_argument('--model', help='Modelo de IA')
-    parser_enhance.add_argument('--api-key', help='API Key para el proveedor')
-    parser_enhance.add_argument('--prompt', help='Prompt personalizado para la IA')
+    parser_enhance = subparsers.add_parser(
+        "enhance", help="Mejora archivos de configuración con IA"
+    )
+    parser_enhance.add_argument("directory", help="Directorio del proyecto")
+    parser_enhance.add_argument("--ai", action="store_true", help="Usar IA para mejorar archivos")
+    parser_enhance.add_argument("--provider", default="plataformia", help="Proveedor de IA")
+    parser_enhance.add_argument("--model", help="Modelo de IA")
+    parser_enhance.add_argument("--api-key", help="API Key para el proveedor")
+    parser_enhance.add_argument("--prompt", help="Prompt personalizado para la IA")
 
     # ── compile ──
-    parser_compile = subparsers.add_parser('compile', help='Compila un archivo fuente')
-    parser_compile.add_argument('file', help='Ruta del archivo fuente')
-    parser_compile.add_argument('--tool', help='Nombre de la herramienta a usar (si no se especifica, se autodetecta)')
-    parser_compile.add_argument('--output', '-o', help='Ruta de salida (opcional)')
-    parser_compile.add_argument('--type', '-t', default='exe',
-                                help='Tipo de salida (ej: exe, dll, obj, etc.)')
-    parser_compile.add_argument('--target', default='native',
-                                help='Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)')
-    parser_compile.add_argument('--release', '-r', action='store_true',
-                                help='Modo release (optimizaciones)')
-    parser_compile.add_argument('--args', '-a', help='Argumentos adicionales (entre comillas)')
+    parser_compile = subparsers.add_parser("compile", help="Compila un archivo fuente")
+    parser_compile.add_argument("file", help="Ruta del archivo fuente")
+    parser_compile.add_argument(
+        "--tool", help="Nombre de la herramienta a usar (si no se especifica, se autodetecta)"
+    )
+    parser_compile.add_argument("--output", "-o", help="Ruta de salida (opcional)")
+    parser_compile.add_argument(
+        "--type", "-t", default="exe", help="Tipo de salida (ej: exe, dll, obj, etc.)"
+    )
+    parser_compile.add_argument(
+        "--target",
+        default="native",
+        help="Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)",
+    )
+    parser_compile.add_argument(
+        "--release", "-r", action="store_true", help="Modo release (optimizaciones)"
+    )
+    parser_compile.add_argument("--args", "-a", help="Argumentos adicionales (entre comillas)")
 
     # ── package ──
-    parser_package = subparsers.add_parser('package', help='Empaqueta un archivo (genera ejecutable independiente)')
-    parser_package.add_argument('file', help='Ruta del archivo fuente')
-    parser_package.add_argument('--tool', help='Nombre de la herramienta de empaquetado (si no se especifica, se autodetecta)')
-    parser_package.add_argument('--output', '-o', help='Ruta de salida (opcional)')
-    parser_package.add_argument('--args', '-a', help='Argumentos adicionales (entre comillas)')
-    parser_package.add_argument('--target', default='native',
-                                help='Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)')
+    parser_package = subparsers.add_parser(
+        "package", help="Empaqueta un archivo (genera ejecutable independiente)"
+    )
+    parser_package.add_argument("file", help="Ruta del archivo fuente")
+    parser_package.add_argument(
+        "--tool",
+        help="Nombre de la herramienta de empaquetado (si no se especifica, se autodetecta)",
+    )
+    parser_package.add_argument("--output", "-o", help="Ruta de salida (opcional)")
+    parser_package.add_argument("--args", "-a", help="Argumentos adicionales (entre comillas)")
+    parser_package.add_argument(
+        "--target",
+        default="native",
+        help="Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)",
+    )
 
     # ── build ──
-    parser_build = subparsers.add_parser('build', help='Compila un proyecto multi-lenguaje')
-    parser_build.add_argument('directory', help='Directorio del proyecto')
-    parser_build.add_argument('--target', default='native', help='Target de compilación')
+    parser_build = subparsers.add_parser("build", help="Compila un proyecto multi-lenguaje")
+    parser_build.add_argument("directory", help="Directorio del proyecto")
+    parser_build.add_argument("--target", default="native", help="Target de compilación")
 
     # ── plugin ──
-    parser_plugin = subparsers.add_parser('plugin', help='Gestiona plugins del marketplace')
-    plugin_subparsers = parser_plugin.add_subparsers(dest='plugin_action', required=True, help='Acción a realizar')
+    parser_plugin = subparsers.add_parser("plugin", help="Gestiona plugins del marketplace")
+    plugin_subparsers = parser_plugin.add_subparsers(
+        dest="plugin_action", required=True, help="Acción a realizar"
+    )
 
     # plugin list
-    plugin_subparsers.add_parser('list', help='Lista los plugins instalados')
+    plugin_subparsers.add_parser("list", help="Lista los plugins instalados")
 
     # plugin available
-    plugin_subparsers.add_parser('available', help='Lista los plugins disponibles en el marketplace')
+    plugin_subparsers.add_parser(
+        "available", help="Lista los plugins disponibles en el marketplace"
+    )
 
     # plugin loaded
-    plugin_subparsers.add_parser('loaded', help='Lista los plugins cargados en memoria')
+    plugin_subparsers.add_parser("loaded", help="Lista los plugins cargados en memoria")
 
     # plugin install
-    parser_install = plugin_subparsers.add_parser('install', help='Instala un plugin')
-    parser_install.add_argument('plugin_id', help='ID del plugin a instalar')
-    parser_install.add_argument('--version', help='Versión específica del plugin')
+    parser_install = plugin_subparsers.add_parser("install", help="Instala un plugin")
+    parser_install.add_argument("plugin_id", help="ID del plugin a instalar")
+    parser_install.add_argument("--version", help="Versión específica del plugin")
 
     # plugin uninstall
-    parser_uninstall = plugin_subparsers.add_parser('uninstall', help='Desinstala un plugin')
-    parser_uninstall.add_argument('plugin_id', help='ID del plugin a desinstalar')
+    parser_uninstall = plugin_subparsers.add_parser("uninstall", help="Desinstala un plugin")
+    parser_uninstall.add_argument("plugin_id", help="ID del plugin a desinstalar")
 
     # plugin update
-    parser_update = plugin_subparsers.add_parser('update', help='Actualiza un plugin')
-    parser_update.add_argument('plugin_id', help='ID del plugin a actualizar')
+    parser_update = plugin_subparsers.add_parser("update", help="Actualiza un plugin")
+    parser_update.add_argument("plugin_id", help="ID del plugin a actualizar")
 
     # plugin reload
-    parser_reload = plugin_subparsers.add_parser('reload', help='Recarga un plugin (útil para desarrollo)')
-    parser_reload.add_argument('plugin_id', help='ID del plugin a recargar')
+    parser_reload = plugin_subparsers.add_parser(
+        "reload", help="Recarga un plugin (útil para desarrollo)"
+    )
+    parser_reload.add_argument("plugin_id", help="ID del plugin a recargar")
 
     # plugin info
-    parser_info = plugin_subparsers.add_parser('info', help='Muestra información de un plugin')
-    parser_info.add_argument('plugin_id', help='ID del plugin')
+    parser_info = plugin_subparsers.add_parser("info", help="Muestra información de un plugin")
+    parser_info.add_argument("plugin_id", help="ID del plugin")
 
     # plugin create
-    parser_create = plugin_subparsers.add_parser('create', help='Crea un nuevo plugin desde una plantilla')
-    parser_create.add_argument('name', help='Nombre del plugin')
-    parser_create.add_argument('--languages', '-l', help='Lenguajes soportados (separados por comas)', default='')
+    parser_create = plugin_subparsers.add_parser(
+        "create", help="Crea un nuevo plugin desde una plantilla"
+    )
+    parser_create.add_argument("name", help="Nombre del plugin")
+    parser_create.add_argument(
+        "--languages", "-l", help="Lenguajes soportados (separados por comas)", default=""
+    )
 
     # ── enhance-config ──
-    parser_enhance_config = subparsers.add_parser('enhance-config', help='Mejora el archivo .compilador con IA')
-    parser_enhance_config.add_argument('directory', nargs='?', default='.', help='Directorio del proyecto')
+    parser_enhance_config = subparsers.add_parser(
+        "enhance-config", help="Mejora el archivo .compilador con IA"
+    )
+    parser_enhance_config.add_argument(
+        "directory", nargs="?", default=".", help="Directorio del proyecto"
+    )
 
     args = parser.parse_args()
 
-    if args.command == 'list-tools':
+    if args.command == "list-tools":
         list_tools()
-    elif args.command == 'init':
+    elif args.command == "init":
         init_project(args)
-    elif args.command == 'config':
+    elif args.command == "config":
         config_command(args)
-    elif args.command == 'analyze':
+    elif args.command == "analyze":
         analyze_project(args)
-    elif args.command == 'generate':
+    elif args.command == "generate":
         generate_files(args)
-    elif args.command == 'enhance':
+    elif args.command == "enhance":
         enhance_files(args)
-    elif args.command == 'compile':
+    elif args.command == "compile":
         compile_file(args)
-    elif args.command == 'package':
+    elif args.command == "package":
         package_file(args)
-    elif args.command == 'build':
+    elif args.command == "build":
         build_project(args)
     elif args.command == "enhance-config":
         enhance_config_command(args)
-    elif args.command == 'plugin':
-        if args.plugin_action == 'list':
+    elif args.command == "plugin":
+        if args.plugin_action == "list":
             plugin_list()
-        elif args.plugin_action == 'available':
+        elif args.plugin_action == "available":
             plugin_available()
-        elif args.plugin_action == 'loaded':
+        elif args.plugin_action == "loaded":
             plugin_loaded()
-        elif args.plugin_action == 'install':
+        elif args.plugin_action == "install":
             plugin_install(args)
-        elif args.plugin_action == 'uninstall':
+        elif args.plugin_action == "uninstall":
             plugin_uninstall(args)
-        elif args.plugin_action == 'update':
+        elif args.plugin_action == "update":
             plugin_update(args)
-        elif args.plugin_action == 'reload':
+        elif args.plugin_action == "reload":
             plugin_reload(args)
-        elif args.plugin_action == 'info':
+        elif args.plugin_action == "info":
             plugin_info(args)
-        elif args.plugin_action == 'create':
+        elif args.plugin_action == "create":
             plugin_create(args)
 
 
 # ── FUNCIONES DE PLUGINS ──
+
 
 def plugin_list():
     """Lista los plugins instalados."""
@@ -232,11 +282,11 @@ def plugin_available():
     print("\n📦 Plugins disponibles:")
     print("-" * 70)
     for p in plugins:
-        name = p.get('name', p.get('id', 'Unknown'))
-        version = p.get('version', 'latest')
-        author = p.get('author', 'Unknown')
-        langs = ', '.join(p.get('supported_languages', []))
-        desc = p.get('description', '')
+        name = p.get("name", p.get("id", "Unknown"))
+        version = p.get("version", "latest")
+        author = p.get("author", "Unknown")
+        langs = ", ".join(p.get("supported_languages", []))
+        desc = p.get("description", "")
         print(f"  {name} (v{version}) por {author}")
         if langs:
             print(f"    Lenguajes: {langs}")
@@ -275,7 +325,9 @@ def plugin_install(args):
         if PluginLoader.load_plugin_by_id(args.plugin_id):
             print(f"✅ Plugin '{args.plugin_id}' instalado y cargado.")
         else:
-            print(f"✅ Plugin '{args.plugin_id}' instalado, pero no se pudo cargar. Usa 'plugin reload {args.plugin_id}'.")
+            print(
+                f"✅ Plugin '{args.plugin_id}' instalado, pero no se pudo cargar. Usa 'plugin reload {args.plugin_id}'."
+            )
     else:
         print(f"❌ No se pudo instalar el plugin '{args.plugin_id}'.")
 
@@ -361,10 +413,10 @@ def plugin_create(args):
     from pathlib import Path
 
     name = args.name
-    languages = [lang.strip() for lang in args.languages.split(',') if lang.strip()]
+    languages = [lang.strip() for lang in args.languages.split(",") if lang.strip()]
 
     if not languages:
-        languages = ['custom']
+        languages = ["custom"]
 
     # Generar plantilla
     template = PluginLoader.create_plugin_template(name, languages)
@@ -378,18 +430,18 @@ def plugin_create(args):
     if filepath.exists():
         print(f"⚠️  El archivo {filepath} ya existe. ¿Sobrescribir?")
         response = input("Sobrescribir (s/N): ").strip().lower()
-        if response != 's':
+        if response != "s":
             print("Cancelado.")
             return
 
-    with open(filepath, 'w', encoding='utf-8') as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         f.write(template)
 
     print(f"✅ Plugin '{name}' creado en {filepath}")
 
     # Preguntar si instalar
     response = input("¿Deseas instalar el plugin ahora? (s/N): ").strip().lower()
-    if response == 's':
+    if response == "s":
         manager = PluginManager()
         if manager.install_plugin(name):
             print(f"✅ Plugin '{name}' instalado y cargado.")
@@ -398,6 +450,7 @@ def plugin_create(args):
 
 
 # ── COMANDOS DE PROYECTO ──
+
 
 def init_project(args):
     """Inicializa un proyecto con .compilador"""
@@ -411,7 +464,7 @@ def init_project(args):
 
 def config_command(args):
     """Muestra o edita la configuración .compilador"""
-    config = CompiladorConfig(args.directory if args.directory else '.')
+    config = CompiladorConfig(args.directory if args.directory else ".")
     config.load()
 
     if args.show:
@@ -421,11 +474,11 @@ def config_command(args):
     if args.set:
         key, value = args.set
         try:
-            if value.lower() == 'true':
+            if value.lower() == "true":
                 value = True
-            elif value.lower() == 'false':
+            elif value.lower() == "false":
                 value = False
-            elif '.' in value:
+            elif "." in value:
                 value = float(value)
             else:
                 value = int(value)
@@ -442,6 +495,7 @@ def config_command(args):
 
 # ── FUNCIONES EXISTENTES (sin cambios) ──
 
+
 def list_tools():
     detector = CompilerDetector()
     tools = detector.get_all_tools()
@@ -451,10 +505,10 @@ def list_tools():
     print(f"{'Nombre':<20} {'Versión':<25} {'Tipo':<12} {'Extensiones'}")
     print("-" * 80)
     for tool in tools:
-        name = tool.get('name', '')
-        version = (tool.get('version', '') or '')[:22]
-        type_ = tool.get('type', '')
-        exts = ', '.join(tool.get('extensions', []))
+        name = tool.get("name", "")
+        version = (tool.get("version", "") or "")[:22]
+        type_ = tool.get("type", "")
+        exts = ", ".join(tool.get("extensions", []))
         print(f"{name:<20} {version:<25} {type_:<12} {exts}")
 
 
@@ -471,7 +525,7 @@ def analyze_project(args):
         use_ai=args.ai,
         provider=args.provider,
         api_key=args.api_key,
-        model=args.model
+        model=args.model,
     )
 
     summary = analyzer.analyze()
@@ -479,7 +533,7 @@ def analyze_project(args):
 
     if args.output:
         try:
-            with open(args.output, 'w', encoding='utf-8') as f:
+            with open(args.output, "w", encoding="utf-8") as f:
                 json.dump(summary, f, indent=2, default=str)
             print(f"\n✅ Análisis guardado en: {args.output}")
         except Exception as e:
@@ -499,15 +553,12 @@ def generate_files(args):
         use_ai=args.ai,
         provider=args.provider,
         api_key=args.api_key,
-        model=args.model
+        model=args.model,
     )
     project_info = analyzer.analyze()
 
     generator = ProjectGenerator(
-        use_ai=args.ai,
-        provider=args.provider,
-        api_key=args.api_key,
-        model=args.model
+        use_ai=args.ai, provider=args.provider, api_key=args.api_key, model=args.model
     )
 
     files = generator.generate_config_files(project_info, args.prompt or "")
@@ -525,7 +576,7 @@ def generate_files(args):
         filepath = os.path.join(directory, filename)
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             saved += 1
             print(f"✅ Guardado: {filepath}")
@@ -552,22 +603,22 @@ def enhance_files(args):
         use_ai=args.ai,
         provider=args.provider,
         api_key=args.api_key,
-        model=args.model
+        model=args.model,
     )
     project_info = analyzer.analyze()
 
     existing_files = {}
-    config_files = project_info.get('config_files', [])
+    config_files = project_info.get("config_files", [])
     for entry in config_files:
         if isinstance(entry, dict):
-            name = entry.get('name')
-            path = entry.get('path')
+            name = entry.get("name")
+            path = entry.get("path")
         else:
             name = os.path.basename(entry)
             path = entry
         if path and os.path.exists(path):
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, "r", encoding="utf-8") as f:
                     existing_files[name] = f.read()
             except Exception:
                 pass
@@ -577,15 +628,12 @@ def enhance_files(args):
         sys.exit(1)
 
     generator = ProjectGenerator(
-        use_ai=args.ai,
-        provider=args.provider,
-        api_key=args.api_key,
-        model=args.model
+        use_ai=args.ai, provider=args.provider, api_key=args.api_key, model=args.model
     )
 
     result = generator.enhance_files_with_ai(project_info, existing_files, args.prompt or "")
-    files = result.get('files', {})
-    build_cmd = result.get('build_command')
+    files = result.get("files", {})
+    build_cmd = result.get("build_command")
 
     if not files:
         print("No se mejoraron archivos.")
@@ -605,7 +653,7 @@ def enhance_files(args):
         filepath = os.path.join(directory, filename)
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             saved += 1
             print(f"✅ Guardado: {filepath}")
@@ -631,14 +679,19 @@ def compile_file(args):
     # ── DETECTAR LENGUAJE ──
     ext = os.path.splitext(file_path)[1].lower()
     lang_map = {
-        '.c': 'c', '.cpp': 'cpp', '.py': 'python',
-        '.rs': 'rust', '.go': 'go', '.java': 'java',
-        '.js': 'javascript', '.ts': 'typescript'
+        ".c": "c",
+        ".cpp": "cpp",
+        ".py": "python",
+        ".rs": "rust",
+        ".go": "go",
+        ".java": "java",
+        ".js": "javascript",
+        ".ts": "typescript",
     }
-    language = lang_map.get(ext, 'unknown')
+    language = lang_map.get(ext, "unknown")
 
     # ── SI .compilador TIENE COMANDO DEFINIDO PARA EL LENGUAJE ──
-    if language != 'unknown':
+    if language != "unknown":
         cmd_from_config = config.get_build_command_for_language(language)
         if cmd_from_config:
             print(f"📄 Usando comando desde .compilador: {cmd_from_config}")
@@ -646,12 +699,9 @@ def compile_file(args):
             env = os.environ.copy()
             env.update(config.get_env_vars())
             import subprocess
+
             result = subprocess.run(
-                cmd_from_config.split(),
-                cwd=project_dir,
-                capture_output=True,
-                text=True,
-                env=env
+                cmd_from_config.split(), cwd=project_dir, capture_output=True, text=True, env=env
             )
             if result.returncode == 0:
                 print("✅ Compilación exitosa.")
@@ -666,14 +716,17 @@ def compile_file(args):
     if args.tool:
         tool_name = args.tool
         tools = detector.get_all_tools()
-        tool = next((t for t in tools if t.get('name', '').lower() == tool_name.lower()), None)
+        tool = next((t for t in tools if t.get("name", "").lower() == tool_name.lower()), None)
         if not tool:
             print(f"Error: Herramienta '{tool_name}' no encontrada.", file=sys.stderr)
             sys.exit(1)
     else:
         tool = detector.get_tool_for_file(file_path)
         if not tool:
-            print(f"Error: No se pudo detectar una herramienta adecuada para '{file_path}'.", file=sys.stderr)
+            print(
+                f"Error: No se pudo detectar una herramienta adecuada para '{file_path}'.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         print(f"Herramienta autodetectada: {tool.get('name')}")
 
@@ -691,8 +744,11 @@ def compile_file(args):
                 found = True
                 break
         if not found:
-            print(f"Advertencia: Tipo de salida '{args.type}' no reconocido. Usando 'exe'.", file=sys.stderr)
-            output_type = 'exe'
+            print(
+                f"Advertencia: Tipo de salida '{args.type}' no reconocido. Usando 'exe'.",
+                file=sys.stderr,
+            )
+            output_type = "exe"
 
     # 3. Compilar
     engine = CompilationEngine()
@@ -703,16 +759,16 @@ def compile_file(args):
         extra_args=extra_args,
         output_type=output_type,
         release_mode=args.release,
-        target=args.target
+        target=args.target,
     )
 
     # 4. Mostrar resultados
-    if result['stdout']:
-        print(result['stdout'])
-    if result['stderr']:
-        print(result['stderr'], file=sys.stderr)
+    if result["stdout"]:
+        print(result["stdout"])
+    if result["stderr"]:
+        print(result["stderr"], file=sys.stderr)
 
-    if result['success']:
+    if result["success"]:
         print(f"✅ Compilación exitosa. Salida: {result.get('output_file', 'N/A')}")
         sys.exit(0)
     else:
@@ -730,34 +786,41 @@ def package_file(args):
     detector = CompilerDetector()
 
     # Verificar si el target es nativo
-    if args.target and args.target != 'native':
+    if args.target and args.target != "native":
         # Detectar si es Python con PyInstaller
-        if file_path.endswith('.py'):
+        if file_path.endswith(".py"):
             # Buscar PyOxidizer
             tools = detector.get_all_tools()
-            pyoxidizer = next((t for t in tools if t.get('name').lower() == 'PyOxidizer'.lower()), None)
+            pyoxidizer = next(
+                (t for t in tools if t.get("name").lower() == "PyOxidizer".lower()), None
+            )
 
             if pyoxidizer:
                 print(f"🌍 Usando PyOxidizer para {args.target}.")
                 # Usar PyOxidizer como herramienta
                 tool = pyoxidizer
             else:
-                print(f"⚠️  PyInstaller no soporta cross-compilation a {args.target}. PyOxidizer no está instalado.", file=sys.stderr)
+                print(
+                    f"⚠️  PyInstaller no soporta cross-compilation a {args.target}. PyOxidizer no está instalado.",
+                    file=sys.stderr,
+                )
                 print("⚠️  Continuando con plataforma nativa.", file=sys.stderr)
-                args.target = 'native'
+                args.target = "native"
 
     # 1. Seleccionar herramienta de empaquetado
     if args.tool:
         tool_name = args.tool
         tools = detector.get_all_tools()
-        tool = next((t for t in tools if t.get('name', '').lower() == tool_name.lower()), None)
+        tool = next((t for t in tools if t.get("name", "").lower() == tool_name.lower()), None)
         if not tool:
             print(f"Error: Herramienta '{tool_name}' no encontrada.", file=sys.stderr)
             sys.exit(1)
     else:
         ext = os.path.splitext(file_path)[1].lower()
         tools = detector.get_all_tools()
-        packagers = [t for t in tools if t.get('type') == 'packager' and ext in t.get('extensions', [])]
+        packagers = [
+            t for t in tools if t.get("type") == "packager" and ext in t.get("extensions", [])
+        ]
         if not packagers:
             print(f"Error: No se encontró un empaquetador para {file_path}.", file=sys.stderr)
             sys.exit(1)
@@ -774,16 +837,16 @@ def package_file(args):
         tool=tool,
         output_path=args.output,
         extra_args=extra_args,
-        target=args.target
+        target=args.target,
     )
 
     # 4. Mostrar resultados
-    if result['stdout']:
-        print(result['stdout'])
-    if result['stderr']:
-        print(result['stderr'], file=sys.stderr)
+    if result["stdout"]:
+        print(result["stdout"])
+    if result["stderr"]:
+        print(result["stderr"], file=sys.stderr)
 
-    if result['success']:
+    if result["success"]:
         print(f"✅ Empaquetado exitoso. Salida: {result.get('output_file', 'N/A')}")
         sys.exit(0)
     else:
@@ -809,17 +872,14 @@ def build_project(args):
         env.update(config.get_env_vars())
 
         for step in steps:
-            language = step.get('language')
-            command = step.get('command')
-            if command and command != 'auto':
+            language = step.get("language")
+            command = step.get("command")
+            if command and command != "auto":
                 print(f"  🔧 {language}: {command}")
                 import subprocess
+
                 result = subprocess.run(
-                    command.split(),
-                    cwd=directory,
-                    capture_output=True,
-                    text=True,
-                    env=env
+                    command.split(), cwd=directory, capture_output=True, text=True, env=env
                 )
                 if result.returncode != 0:
                     print(f"❌ Falló el paso {language}: {result.stderr}", file=sys.stderr)
@@ -835,6 +895,7 @@ def build_project(args):
 
     # Crear orquestador
     from ..builder.build_orchestrator import BuildOrchestrator
+
     orchestrator = BuildOrchestrator(directory)
     orchestrator.create_pipeline(project_info)
 
@@ -860,16 +921,17 @@ def enhance_config_command(args):
 
     # Obtener configuración de IA
     ai_config = config.get_ai_config()
-    if not ai_config.get('enabled'):
+    if not ai_config.get("enabled"):
         print("Error: La IA no está habilitada en .compilador.", file=sys.stderr)
         sys.exit(1)
 
     # Crear cliente de IA
     from ..utils.ai_client import AIClient
+
     ai_client = AIClient(
-        provider=ai_config.get('provider'),
-        api_key=ai_config.get('api_key'),
-        model=ai_config.get('model')
+        provider=ai_config.get("provider"),
+        api_key=ai_config.get("api_key"),
+        model=ai_config.get("model"),
     )
 
     if config.enhance_with_ai(ai_client):
@@ -879,5 +941,5 @@ def enhance_config_command(args):
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

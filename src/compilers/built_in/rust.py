@@ -1,60 +1,62 @@
 # src/compilers/builtin/rust.py
 import os
-from typing import List, Tuple, Optional, Any, Dict
-from ..base import CompilerStrategy
+from typing import Any, Dict, List, Optional, Tuple
+
 from ...utils.target_manager import TargetManager
+from ..base import CompilerStrategy
 
 
 class RustStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:
-        return 'rust'
+        return "rust"
 
     @property
     def supported_extensions(self) -> List[str]:
-        return ['.rs']
+        return [".rs"]
 
     def build_command(
         self,
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        output_type: str = 'exe',
+        output_type: str = "exe",
         release_mode: bool = False,
-        target: str = 'native'
+        target: str = "native",
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
         post_actions = []
 
-        is_cargo_project = (
-            os.path.basename(file_path).lower() == 'cargo.toml' or
-            os.path.isdir(os.path.join(os.path.dirname(file_path), 'src'))
+        is_cargo_project = os.path.basename(file_path).lower() == "cargo.toml" or os.path.isdir(
+            os.path.join(os.path.dirname(file_path), "src")
         )
 
         if is_cargo_project:
-            cmd = ['cargo', 'build']
+            cmd = ["cargo", "build"]
             if release_mode:
-                cmd.append('--release')
+                cmd.append("--release")
             if output_path:
-                post_actions.append(('cargo_move', output_path))
-            if target != 'native':
+                post_actions.append(("cargo_move", output_path))
+            if target != "native":
                 rust_target = TargetManager.get_rust_target(target)
                 if rust_target:
-                    cmd.extend(['--target', rust_target])
+                    cmd.extend(["--target", rust_target])
             if extra_args:
                 cmd.extend(extra_args)
             cwd = os.path.dirname(file_path) if os.path.isfile(file_path) else None
             return cmd, cwd, post_actions
         else:
-            out = output_path or os.path.splitext(file_path)[0] + ('.exe' if os.name == 'nt' else '')
-            cmd = ['rustc', file_path, '-o', out]
-            if target != 'native':
+            out = output_path or os.path.splitext(file_path)[0] + (
+                ".exe" if os.name == "nt" else ""
+            )
+            cmd = ["rustc", file_path, "-o", out]
+            if target != "native":
                 rust_target = TargetManager.get_rust_target(target)
                 if rust_target:
-                    cmd.extend(['--target', rust_target])
+                    cmd.extend(["--target", rust_target])
             if release_mode:
-                cmd.append('-C')
-                cmd.append('opt-level=3')
+                cmd.append("-C")
+                cmd.append("opt-level=3")
             if extra_args:
                 cmd.extend(extra_args)
             return cmd, None, post_actions
@@ -63,10 +65,10 @@ class RustStrategy(CompilerStrategy):
         self,
         file_path: str,
         output_path: Optional[str] = None,
-        extra_args: Optional[List[str]] = None
+        extra_args: Optional[List[str]] = None,
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
-        cmd = ['cargo', 'build', '--release']
+        cmd = ["cargo", "build", "--release"]
         if output_path:
             pass
         if extra_args:
@@ -78,13 +80,13 @@ class RustStrategy(CompilerStrategy):
         """
         Genera archivos de configuración para Rust.
         """
-        project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
-        deps = list(project_info.get('dependencies', set()))[:5]
-        dep_lines = '\n'.join(f'    "{dep}" = "latest"' for dep in deps if dep not in ['std'])
+        project_name = os.path.basename(project_info.get("project_dir", "mi_proyecto"))
+        deps = list(project_info.get("dependencies", set()))[:5]
+        dep_lines = "\n".join(f'    "{dep}" = "latest"' for dep in deps if dep not in ["std"])
 
         files = {}
 
-        files['Cargo.toml'] = f'''[package]
+        files["Cargo.toml"] = f"""[package]
 name = "{project_name}"
 version = "0.1.0"
 edition = "2021"
@@ -95,9 +97,9 @@ edition = "2021"
 [[bin]]
 name = "{project_name}"
 path = "src/main.rs"
-'''
+"""
 
-        files['.gitignore'] = """target/
+        files[".gitignore"] = """target/
 Cargo.lock
 *.rs.bk
 """

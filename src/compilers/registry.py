@@ -35,9 +35,12 @@ class CompilerRegistry:
         # Cargar builtins
         try:
             from . import built_in
-            for module_info in pkgutil.iter_modules(built_in.__path__, prefix='src.compilers.built_in.'):
+
+            for module_info in pkgutil.iter_modules(
+                built_in.__path__, prefix="src.compilers.built_in."
+            ):
                 module = importlib.import_module(module_info.name)
-                if hasattr(module, 'STRATEGY_CLASS'):
+                if hasattr(module, "STRATEGY_CLASS"):
                     cls.register(module.STRATEGY_CLASS)
         except ImportError:
             pass
@@ -45,9 +48,12 @@ class CompilerRegistry:
         # Cargar plugins
         try:
             from . import plugins
-            for module_info in pkgutil.iter_modules(plugins.__path__, prefix='src.compilers.plugins.'):
+
+            for module_info in pkgutil.iter_modules(
+                plugins.__path__, prefix="src.compilers.plugins."
+            ):
                 module = importlib.import_module(module_info.name)
-                if hasattr(module, 'STRATEGY_CLASS'):
+                if hasattr(module, "STRATEGY_CLASS"):
                     cls.register(module.STRATEGY_CLASS)
         except ImportError:
             pass

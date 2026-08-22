@@ -3,14 +3,14 @@
 Gestor de plugins: instalación, desinstalación, actualización.
 """
 
-from pathlib import Path
-from typing import List, Optional, Dict, Type
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Type
 
-from .plugin_registry import PluginRegistry, PluginMetadata, PluginStatus
-from .plugin_loader import PluginLoader
-from .market_client import MarketClient
 from ..utils import logger
+from .market_client import MarketClient
+from .plugin_loader import PluginLoader
+from .plugin_registry import PluginMetadata, PluginRegistry, PluginStatus
 
 log = logger.Logger()
 
@@ -40,7 +40,7 @@ class PluginManager:
             return False
 
         # Verificar dependencias
-        deps = plugin_info.get('dependencies', [])
+        deps = plugin_info.get("dependencies", [])
         for dep in deps:
             if not self.registry.is_installed(dep):
                 # Intentar instalar dependencia automáticamente
@@ -58,7 +58,7 @@ class PluginManager:
         plugin_file = self.PLUGINS_DIR / f"{plugin_id}.py"
         try:
             self.PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
-            with open(plugin_file, 'w', encoding='utf-8') as f:
+            with open(plugin_file, "w", encoding="utf-8") as f:
                 f.write(plugin_content)
         except Exception as e:
             log.error(f"[PluginManager] Error guardando plugin {plugin_id}: {e}")
@@ -67,22 +67,22 @@ class PluginManager:
         # Registrar el plugin
         metadata = PluginMetadata(
             id=plugin_id,
-            name=plugin_info.get('name', plugin_id),
-            version=plugin_info.get('version', '0.0.1'),
-            description=plugin_info.get('description', ''),
-            author=plugin_info.get('author', 'Unknown'),
-            email=plugin_info.get('email'),
-            homepage=plugin_info.get('homepage'),
-            repository=plugin_info.get('repository'),
-            dependencies=plugin_info.get('dependencies', []),
-            supported_languages=plugin_info.get('supported_languages', []),
-            supported_platforms=plugin_info.get('supported_platforms', []),
-            min_compiler_version=plugin_info.get('min_compiler_version', '1.0.0'),
-            max_compiler_version=plugin_info.get('max_compiler_version'),
+            name=plugin_info.get("name", plugin_id),
+            version=plugin_info.get("version", "0.0.1"),
+            description=plugin_info.get("description", ""),
+            author=plugin_info.get("author", "Unknown"),
+            email=plugin_info.get("email"),
+            homepage=plugin_info.get("homepage"),
+            repository=plugin_info.get("repository"),
+            dependencies=plugin_info.get("dependencies", []),
+            supported_languages=plugin_info.get("supported_languages", []),
+            supported_platforms=plugin_info.get("supported_platforms", []),
+            min_compiler_version=plugin_info.get("min_compiler_version", "1.0.0"),
+            max_compiler_version=plugin_info.get("max_compiler_version"),
             installed_at=datetime.now().isoformat(),
             active=True,
             status=PluginStatus.INSTALLED,
-            strategy_class=plugin_info.get('strategy_class'),
+            strategy_class=plugin_info.get("strategy_class"),
         )
 
         self.registry.add_plugin(metadata)
@@ -104,7 +104,9 @@ class PluginManager:
         # Verificar si hay plugins que dependen de este
         for p in self.registry.get_installed_plugins():
             if plugin_id in p.dependencies:
-                log.warning(f"[PluginManager] No se puede desinstalar {plugin_id}, depende de {p.name}.")
+                log.warning(
+                    f"[PluginManager] No se puede desinstalar {plugin_id}, depende de {p.name}."
+                )
                 return False
 
         # Eliminar el archivo

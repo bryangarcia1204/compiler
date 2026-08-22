@@ -1,26 +1,27 @@
 # src/compilers/builtin/python_build.py
 import os
-from typing import List, Tuple, Optional, Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
+
 from src.compilers.base import CompilerStrategy
 
 
 class PythonBuildStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:
-        return 'python-build'
+        return "python-build"
 
     @property
     def supported_extensions(self) -> List[str]:
-        return ['.py']
+        return [".py"]
 
     def build_command(
         self,
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        output_type: str = 'exe',
+        output_type: str = "exe",
         release_mode: bool = False,
-        target: str = 'native'
+        target: str = "native",
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         return self.build_package_command(file_path, output_path, extra_args, target)
 
@@ -29,16 +30,16 @@ class PythonBuildStrategy(CompilerStrategy):
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        target: str = 'native'
+        target: str = "native",
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
-        cmd = ['python', '-m', 'build', '--wheel']
+        cmd = ["python", "-m", "build", "--wheel"]
         if extra_args:
             cmd.extend(extra_args)
         cwd = os.path.dirname(file_path) or None
         post_actions = []
         if output_path:
-            post_actions.append(('wheel_move', output_path))
+            post_actions.append(("wheel_move", output_path))
         return cmd, cwd, post_actions
 
     def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:

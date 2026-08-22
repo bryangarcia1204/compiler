@@ -4,9 +4,10 @@ Cliente para comunicarse con el marketplace de plugins.
 """
 
 import json
-import urllib.request
 import urllib.error
-from typing import List, Dict, Optional
+import urllib.request
+from typing import Dict, List, Optional
+
 from ..utils import logger
 
 log = logger.Logger()
@@ -31,7 +32,7 @@ class MarketClient:
         # Intentar desde URL
         try:
             with urllib.request.urlopen(self.repo_url, timeout=5) as response:
-                data = response.read().decode('utf-8')
+                data = response.read().decode("utf-8")
                 self._cache = json.loads(data)
                 return self._cache
         except Exception as e:
@@ -39,7 +40,7 @@ class MarketClient:
 
         # Fallback: intentar archivo local
         try:
-            with open(self.LOCAL_REPO_FILE, 'r', encoding='utf-8') as f:
+            with open(self.LOCAL_REPO_FILE, "r", encoding="utf-8") as f:
                 self._cache = json.load(f)
                 return self._cache
         except Exception as e:
@@ -51,20 +52,20 @@ class MarketClient:
     def list_plugins(self) -> List[Dict]:
         """Lista todos los plugins disponibles."""
         repo = self._load_repo()
-        return repo.get('plugins', [])
+        return repo.get("plugins", [])
 
     def get_plugin_info(self, plugin_id: str, version: Optional[str] = None) -> Optional[Dict]:
         """Obtiene información de un plugin específico."""
         plugins = self.list_plugins()
         for plugin in plugins:
-            if plugin.get('id') == plugin_id:
+            if plugin.get("id") == plugin_id:
                 if version:
                     # Buscar versión específica
-                    for v in plugin.get('versions', []):
-                        if v.get('version') == version:
+                    for v in plugin.get("versions", []):
+                        if v.get("version") == version:
                             return {**plugin, **v}
                 # Si no se pide versión, devolver la última
-                versions = plugin.get('versions', [])
+                versions = plugin.get("versions", [])
                 if versions:
                     return {**plugin, **versions[-1]}
                 return plugin
@@ -74,7 +75,7 @@ class MarketClient:
         """Obtiene la última versión de un plugin."""
         info = self.get_plugin_info(plugin_id)
         if info:
-            return info.get('version')
+            return info.get("version")
         return None
 
     def download_plugin(self, plugin_id: str, version: Optional[str] = None) -> Optional[str]:
@@ -84,16 +85,16 @@ class MarketClient:
             return None
 
         # Intentar descargar desde la URL del plugin
-        download_url = info.get('download_url')
+        download_url = info.get("download_url")
         if download_url:
             try:
                 with urllib.request.urlopen(download_url, timeout=10) as response:
-                    return response.read().decode('utf-8')
+                    return response.read().decode("utf-8")
             except Exception as e:
                 log.error(f"[MarketClient] Error descargando {plugin_id}: {e}")
 
         # Fallback: usar el contenido embebido
-        return info.get('content')
+        return info.get("content")
 
     def refresh(self) -> None:
         """Fuerza la recarga del repositorio."""

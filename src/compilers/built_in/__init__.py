@@ -1,12 +1,12 @@
 # src/compilers/builtin/__init__.py
-from .gcc import GCCStrategy
-from .gpp import GPPStrategy
-from .rust import RustStrategy
-from .go import GoStrategy
-from .java import JavaStrategy
-from .python import PythonStrategy
-from .node import NodeStrategy
 from .dotnet import DotnetStrategy
+from .gcc import GCCStrategy
+from .go import GoStrategy
+from .gpp import GPPStrategy
+from .java import JavaStrategy
+from .node import NodeStrategy
+from .python import PythonStrategy
+from .rust import RustStrategy
 
 STRATEGY_CLASSES = [
     GCCStrategy,
@@ -16,7 +16,7 @@ STRATEGY_CLASSES = [
     JavaStrategy,
     PythonStrategy,
     NodeStrategy,
-    DotnetStrategy
+    DotnetStrategy,
 ]
 
 # Registrar cada clase con su STRATEGY_CLASS

@@ -8,25 +8,26 @@ import os
 import platform
 from pathlib import Path
 from typing import Dict, Optional
+
 from ..utils.logger import Logger
 
 log = Logger()
 
 # Configuración multiplataforma
-if platform.system() == 'Windows':
-    CONFIG_DIR = Path(os.environ.get('APPDATA', '')) / 'compilador'
+if platform.system() == "Windows":
+    CONFIG_DIR = Path(os.environ.get("APPDATA", "")) / "compilador"
 else:
-    CONFIG_DIR = Path.home() / '.config' / 'compilador'
+    CONFIG_DIR = Path.home() / ".config" / "compilador"
 
-CONFIG_PATH = CONFIG_DIR / 'config.json'
-PROJECT_STATE_PATH = CONFIG_DIR / 'project_state.json'
+CONFIG_PATH = CONFIG_DIR / "config.json"
+PROJECT_STATE_PATH = CONFIG_DIR / "project_state.json"
 
 
 def load_config() -> Dict:
     """Carga la configuración general."""
     try:
         if CONFIG_PATH.exists():
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception:
         pass
@@ -37,7 +38,7 @@ def save_config(data: Dict) -> None:
     """Guarda la configuración general."""
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
@@ -47,7 +48,7 @@ def load_project_state() -> Optional[Dict]:
     """Carga el estado guardado del proyecto."""
     try:
         if PROJECT_STATE_PATH.exists():
-            with open(PROJECT_STATE_PATH, 'r', encoding='utf-8') as f:
+            with open(PROJECT_STATE_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception:
         pass
@@ -71,8 +72,9 @@ def save_project_state(state: Dict) -> None:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         # Añadir timestamp
         from datetime import datetime
-        state['last_modified'] = datetime.now().isoformat()
-        with open(PROJECT_STATE_PATH, 'w', encoding='utf-8') as f:
+
+        state["last_modified"] = datetime.now().isoformat()
+        with open(PROJECT_STATE_PATH, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2, default=str)
     except Exception:
         pass

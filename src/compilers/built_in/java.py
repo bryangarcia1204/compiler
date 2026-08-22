@@ -1,33 +1,34 @@
 # src/compilers/builtin/java.py
 import os
-from typing import List, Tuple, Optional, Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
+
 from ..base import CompilerStrategy
 
 
 class JavaStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:
-        return 'java'
+        return "java"
 
     @property
     def supported_extensions(self) -> List[str]:
-        return ['.java']
+        return [".java"]
 
     def build_command(
         self,
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        output_type: str = 'exe',
+        output_type: str = "exe",
         release_mode: bool = False,
-        target: str = 'native'
+        target: str = "native",
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
-        cmd = ['javac', file_path]
+        cmd = ["javac", file_path]
         post_actions = []
-        if output_path and output_path.endswith('.jar'):
+        if output_path and output_path.endswith(".jar"):
             class_dir = os.path.dirname(file_path)
-            post_actions.append(('jar', output_path, class_dir))
+            post_actions.append(("jar", output_path, class_dir))
         if extra_args:
             cmd.extend(extra_args)
         return cmd, None, post_actions
@@ -37,22 +38,22 @@ class JavaStrategy(CompilerStrategy):
         file_path: str,
         output_path: Optional[str] = None,
         extra_args: Optional[List[str]] = None,
-        target: str = 'native'
+        target: str = "native",
     ) -> Tuple[List[str], Optional[str], List[Tuple[str, Any]]]:
         extra_args = extra_args or []
-        jar_name = output_path or os.path.splitext(os.path.basename(file_path))[0] + '.jar'
+        jar_name = output_path or os.path.splitext(os.path.basename(file_path))[0] + ".jar"
         class_dir = os.path.dirname(file_path)
-        cmd = ['jar', 'cf', jar_name, '-C', class_dir, '.']
+        cmd = ["jar", "cf", jar_name, "-C", class_dir, "."]
         if extra_args:
             cmd.extend(extra_args)
         return cmd, None, []
 
     def generate_config_files(self, project_info: Dict, targets: List[str]) -> Dict[str, str]:
         """Genera archivos de configuración para Java."""
-        project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
+        project_name = os.path.basename(project_info.get("project_dir", "mi_proyecto"))
         group_id = project_name.lower()
         files = {}
-        files['pom.xml'] = f'''<?xml version="1.0" encoding="UTF-8"?>
+        files["pom.xml"] = f"""<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -85,8 +86,8 @@ class JavaStrategy(CompilerStrategy):
         </plugins>
     </build>
 </project>
-'''
-        files['.gitignore'] = """*.class
+"""
+        files[".gitignore"] = """*.class
 *.jar
 *.war
 *.ear

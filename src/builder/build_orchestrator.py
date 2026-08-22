@@ -6,9 +6,9 @@ Ejecuta pasos en el orden correcto según dependencias usando reglas.
 
 import os
 import subprocess
-from typing import List, Dict
-from ..config.compilador_config import CompiladorConfig
+from typing import Dict, List
 
+from ..config.compilador_config import CompiladorConfig
 from ..utils import logger
 
 log = logger.Logger()
@@ -16,6 +16,7 @@ log = logger.Logger()
 
 class BuildStep:
     """Representa un paso de compilación."""
+
     def __init__(self, name: str, description: str, command: List[str], cwd: str = None):
         self.name = name
         self.description = description
@@ -29,11 +30,7 @@ class BuildStep:
         log.debug(f"[BuildStep] Comando: {' '.join(self.command)}")
         try:
             result = subprocess.run(
-                self.command,
-                cwd=self.cwd,
-                capture_output=True,
-                text=True,
-                timeout=600
+                self.command, cwd=self.cwd, capture_output=True, text=True, timeout=600
             )
             if result.returncode != 0:
                 log.error(f"[Build] Error: {result.stderr}")
@@ -64,17 +61,17 @@ class BuildOrchestrator:
             if steps:
                 log.info("[BuildOrchestrator] Usando pasos de build desde .compilador")
                 for step_info in steps:
-                    language = step_info.get('language')
-                    command = step_info.get('command')
-                    if command and command != 'auto':
+                    language = step_info.get("language")
+                    command = step_info.get("command")
+                    if command and command != "auto":
                         step = BuildStep(
                             name=f"build_{language}",
                             description=f"Compilando {language}",
                             command=command.split(),
-                            cwd=self.project_dir
+                            cwd=self.project_dir,
                         )
                         self.steps.append(step)
-                    elif command == 'auto':
+                    elif command == "auto":
                         self._add_auto_step(language, project_info)
                 return self.steps
 
@@ -84,14 +81,20 @@ class BuildOrchestrator:
     def _add_auto_step(self, language: str, project_info: Dict):
         """Añade un paso automático para un lenguaje usando la estrategia correspondiente"""
         from ..compilers.registry import CompilerRegistry
+
         strategy = CompilerRegistry.get(language)
         if strategy:
-            cmd, cwd, post_action = strategy.build_command(project_info["main_files"], project_info["project_dir"], project_info.get("extra_args"), release_mode=True)
+            cmd, cwd, post_action = strategy.build_command(
+                project_info["main_files"],
+                project_info["project_dir"],
+                project_info.get("extra_args"),
+                release_mode=True,
+            )
             step = BuildStep(
                 name=f"build_{language}",
                 description=f"Compilando {language} (auto)",
                 command=cmd,
-                cwd=cwd
+                cwd=cwd,
             )
             self.steps.append(step)
 
@@ -100,23 +103,25 @@ class BuildOrchestrator:
         Crea un pipeline usando las reglas de build.
         """
         self.steps = []
-        build_plan = project_info.get('build_plan', [])
+        build_plan = project_info.get("build_plan", [])
 
         if not build_plan:
-            log.warning("[BuildOrchestrator] No hay plan de build. Ejecuta ProjectAnalyzer._detect_build_needs() primero.")
+            log.warning(
+                "[BuildOrchestrator] No hay plan de build. Ejecuta ProjectAnalyzer._detect_build_needs() primero."
+            )
             return []
 
         for plan in build_plan:
-            cmd = plan.get('build_command', '')
+            cmd = plan.get("build_command", "")
             command_list = cmd.split() if cmd else []
             step = BuildStep(
-                name=plan.get('name', 'unknown'),
-                description=plan.get('description', ''),
+                name=plan.get("name", "unknown"),
+                description=plan.get("description", ""),
                 command=command_list,
-                cwd=self.project_dir
+                cwd=self.project_dir,
             )
             # Dependencias: si el plan tiene 'requires', añadirlas (opcional)
-            requires = plan.get('requires', [])
+            requires = plan.get("requires", [])
             if requires:
                 step.dependencies = [r for r in requires]
             self.steps.append(step)

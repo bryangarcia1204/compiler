@@ -5,17 +5,18 @@ Permite cargar plugins desde archivos, directorios o el registro.
 Integración completa con PluginManager y PluginRegistry.
 """
 
-import sys
 import importlib
 import importlib.util
 import inspect
+import sys
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Type, Dict, Callable
+from typing import Callable, Dict, List, Optional, Type
+
 from ..compilers.base import CompilerStrategy
 from ..compilers.registry import CompilerRegistry
-from .plugin_registry import PluginRegistry, PluginStatus
 from ..utils import logger
-from datetime import datetime
+from .plugin_registry import PluginRegistry, PluginStatus
 
 log = logger.Logger()
 
@@ -65,13 +66,15 @@ class PluginLoader:
                 spec.loader.exec_module(module)
 
             # Buscar STRATEGY_CLASS
-            if hasattr(module, 'STRATEGY_CLASS'):
-                strategy_class = getattr(module, 'STRATEGY_CLASS')
+            if hasattr(module, "STRATEGY_CLASS"):
+                strategy_class = getattr(module, "STRATEGY_CLASS")
                 if inspect.isclass(strategy_class) and issubclass(strategy_class, CompilerStrategy):
                     log.debug(f"[PluginLoader] Plugin cargado: {strategy_class.__name__}")
                     return strategy_class
                 else:
-                    log.error("[PluginLoader] STRATEGY_CLASS no es una subclase de CompilerStrategy")
+                    log.error(
+                        "[PluginLoader] STRATEGY_CLASS no es una subclase de CompilerStrategy"
+                    )
             else:
                 log.warning(f"[PluginLoader] No se encontró STRATEGY_CLASS en {filepath.name}")
 
@@ -94,7 +97,7 @@ class PluginLoader:
             return loaded
 
         for file in directory.glob("*.py"):
-            if file.name.startswith('__'):
+            if file.name.startswith("__"):
                 continue
             strategy = cls.load_from_file(file)
             if strategy:
@@ -122,16 +125,22 @@ class PluginLoader:
         # Primero, intentar importar plugins que ya están en el paquete
         # (los que no están en el directorio de plugins)
         try:
-            import src.compilers.plugins as plugins_package
             import pkgutil
-            for module_info in pkgutil.iter_modules(plugins_package.__path__, prefix='src.compilers.plugins.'):
+
+            import src.compilers.plugins as plugins_package
+
+            for module_info in pkgutil.iter_modules(
+                plugins_package.__path__, prefix="src.compilers.plugins."
+            ):
                 try:
                     module = importlib.import_module(module_info.name)
-                    if hasattr(module, 'STRATEGY_CLASS'):
-                        strategy_class = getattr(module, 'STRATEGY_CLASS')
-                        if inspect.isclass(strategy_class) and issubclass(strategy_class, CompilerStrategy):
+                    if hasattr(module, "STRATEGY_CLASS"):
+                        strategy_class = getattr(module, "STRATEGY_CLASS")
+                        if inspect.isclass(strategy_class) and issubclass(
+                            strategy_class, CompilerStrategy
+                        ):
                             CompilerRegistry.register(strategy_class)
-                            plugin_id = module_info.name.split('.')[-1]
+                            plugin_id = module_info.name.split(".")[-1]
                             cls._loaded_plugins[plugin_id] = strategy_class
                             loaded += 1
                             log.debug(f"[PluginLoader] Plugin {plugin_id} cargado desde paquete")
@@ -142,7 +151,7 @@ class PluginLoader:
 
         # Luego, cargar plugins del directorio
         for file in cls.PLUGINS_DIR.glob("*.py"):
-            if file.name.startswith('__'):
+            if file.name.startswith("__"):
                 continue
 
             plugin_id = file.stem
@@ -164,16 +173,17 @@ class PluginLoader:
                         else:
                             # Si no está registrado, crearlo con estado activo
                             from .plugin_registry import PluginMetadata
+
                             metadata = PluginMetadata(
                                 id=plugin_id,
-                                name=file.stem.replace('_', ' ').title(),
+                                name=file.stem.replace("_", " ").title(),
                                 version="0.0.1",
                                 description=f"Plugin {file.stem} cargado automáticamente",
                                 author="Unknown",
                                 installed_at=datetime.now().isoformat(),
                                 active=True,
                                 status=PluginStatus.ACTIVE,
-                                strategy_class=strategy_class.__name__
+                                strategy_class=strategy_class.__name__,
                             )
                             registry.add_plugin(metadata)
 
@@ -201,8 +211,8 @@ class PluginLoader:
         # Primero, intentar importar como módulo del paquete
         try:
             module = importlib.import_module(f"src.compilers.plugins.{plugin_id}")
-            if hasattr(module, 'STRATEGY_CLASS'):
-                strategy_class = getattr(module, 'STRATEGY_CLASS')
+            if hasattr(module, "STRATEGY_CLASS"):
+                strategy_class = getattr(module, "STRATEGY_CLASS")
                 if inspect.isclass(strategy_class) and issubclass(strategy_class, CompilerStrategy):
                     CompilerRegistry.register(strategy_class)
                     cls._loaded_plugins[plugin_id] = strategy_class

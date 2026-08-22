@@ -3,25 +3,38 @@
 Diálogo del marketplace de plugins.
 """
 
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QTabWidget, QWidget, QTextEdit, QLineEdit,
-    QListWidget, QListWidgetItem
-)
+from typing import Optional
+
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from typing import Optional
+from ..utils import logger
 from .plugin_manager import PluginManager
 from .plugin_registry import PluginStatus
-from ..utils import logger
 
 log = logger.Logger()
 
 
 class InstallWorker(QThread):
     """Worker para instalar plugins sin bloquear la GUI."""
+
     finished = pyqtSignal(bool, str)
     progress = pyqtSignal(str)
 
@@ -95,7 +108,9 @@ class MarketDialog(QDialog):
         # Tabla de plugins
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["Nombre", "Versión", "Autor", "Lenguajes", "Estado", "Acción"])
+        self.table.setHorizontalHeaderLabels(
+            ["Nombre", "Versión", "Autor", "Lenguajes", "Estado", "Acción"]
+        )
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
@@ -196,11 +211,11 @@ STRATEGY_CLASS = MiPluginStrategy
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            plugin_id = plugin.get('id', '')
-            name = plugin.get('name', plugin_id)
-            version = plugin.get('version', '0.0.1')
-            author = plugin.get('author', 'Unknown')
-            languages = ', '.join(plugin.get('supported_languages', []))
+            plugin_id = plugin.get("id", "")
+            name = plugin.get("name", plugin_id)
+            version = plugin.get("version", "0.0.1")
+            author = plugin.get("author", "Unknown")
+            languages = ", ".join(plugin.get("supported_languages", []))
 
             # Estado
             installed = plugin_id in installed_plugins
@@ -276,7 +291,7 @@ STRATEGY_CLASS = MiPluginStrategy
             self,
             "Instalar plugin",
             f"¿Deseas instalar el plugin '{plugin_id}'?",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.Yes | QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -311,7 +326,7 @@ STRATEGY_CLASS = MiPluginStrategy
             self,
             "Desinstalar plugin",
             f"¿Deseas desinstalar el plugin '{plugin_id}'?",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.Yes | QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -335,7 +350,11 @@ STRATEGY_CLASS = MiPluginStrategy
             return
 
         new_state = not plugin.active
-        if self.manager.activate_plugin(plugin_id) if new_state else self.manager.deactivate_plugin(plugin_id):
+        if (
+            self.manager.activate_plugin(plugin_id)
+            if new_state
+            else self.manager.deactivate_plugin(plugin_id)
+        ):
             self._populate_installed()
             self.load_plugins()
 
@@ -358,7 +377,7 @@ STRATEGY_CLASS = MiPluginStrategy
             Lenguajes: {', '.join(plugin.supported_languages)}
             Dependencias: {', '.join(plugin.dependencies) or 'Ninguna'}
             Estado: {'Activo' if plugin.active else 'Inactivo'}
-            """
+            """,
         )
 
     def _create_plugin(self):
@@ -375,7 +394,8 @@ STRATEGY_CLASS = MiPluginStrategy
 
         # Guardar plugin temporalmente
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             f.flush()
 
