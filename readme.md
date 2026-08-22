@@ -68,7 +68,7 @@ source venv/bin/activate   # Linux/macOS
 # venv\Scripts\activate    # Windows
 
 # Instalar el paquete en modo editable
-pip install -e . --no-build-isolation
+pip install -e .
 
 * Nota: `--no-build-isolation` evita conflictos con el módulo C++ durante el desarrollo.
 ```
