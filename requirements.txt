@@ -7,4 +7,3 @@ python-dotenv==1.2.2
 setuptools==84.0.0
 tomli==2.4.1
 yaml==6.0.0
-setuptools==11.0.0

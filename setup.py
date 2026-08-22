@@ -17,7 +17,7 @@ else:
 
 cpp_module = Extension(
     'src.module.cpp_module',
-    sources=['cpp_module/detector.cpp', 'cpp_module/bindings.cpp'],
+    sources=['src/module/cpp_module/detector.cpp', 'src/module/cpp_module/bindings.cpp'],
     include_dirs=[pybind11.get_include()],
     language='c++',
     extra_compile_args=extra_compile_args,
