@@ -60,7 +60,7 @@ class GoStrategy(CompilerStrategy):
             cmd.extend(extra_args)
 
         # Las variables de entorno se pasan en el proceso hijo (no en cmd)
-        if env:
+        if target != 'native':
             return cmd, None, [], env
         else:
             return cmd, None, []
