@@ -2,7 +2,7 @@
 import os
 from typing import List, Tuple, Optional, Any, Dict
 from src.compilers.base import CompilerStrategy
-from src import logger
+from src.utils import logger
 
 log = logger.Logger()
 

@@ -15,7 +15,7 @@ from typing import List, Optional, Type, Dict, Any, Callable
 from ..compilers.base import CompilerStrategy
 from ..compilers.registry import CompilerRegistry
 from .plugin_registry import PluginRegistry, PluginStatus
-from .. import logger
+from ..utils import logger
 from datetime import datetime
 
 log = logger.Logger()

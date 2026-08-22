@@ -8,7 +8,7 @@ import os
 import shutil
 from typing import List, Tuple, Optional, Any
 from src.compilers.base import CompilerStrategy
-from src.target_manager import TargetManager
+from src.utils.target_manager import TargetManager
 
 
 class PyOxidizerStrategy(CompilerStrategy):

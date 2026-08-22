@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from src.cli import main, list_tools, compile_file, package_file
+from src.cli.cli import main, list_tools, compile_file, package_file
 from argparse import Namespace
 
 
@@ -18,7 +18,7 @@ class TestCLI:
 
     def test_list_tools(self, capsys):
         """Prueba el comando list-tools."""
-        with patch('src.cli.CompilerDetector.get_all_tools') as mock_get:
+        with patch('src.cli.cli.CompilerDetector.get_all_tools') as mock_get:
             mock_get.return_value = [
                 {'name': 'GCC', 'version': '11.2.0', 'type': 'compiler', 'extensions': ['.c', '.cpp']}
             ]
@@ -29,7 +29,7 @@ class TestCLI:
 
     def test_list_tools_empty(self, capsys):
         """Prueba list-tools cuando no hay herramientas."""
-        with patch('src.cli.CompilerDetector.get_all_tools') as mock_get:
+        with patch('src.cli.cli.CompilerDetector.get_all_tools') as mock_get:
             mock_get.return_value = []
             list_tools()
             captured = capsys.readouterr()
@@ -48,8 +48,8 @@ class TestCLI:
         )
 
         with patch('os.path.isfile', return_value=True), \
-             patch('src.cli.CompilerDetector') as mock_detector, \
-             patch('src.cli.CompilationEngine') as mock_engine:
+             patch('src.cli.cli.CompilerDetector') as mock_detector, \
+             patch('src.cli.cli.CompilationEngine') as mock_engine:
 
             mock_tool = {'name': 'gcc'}
             mock_detector.return_value.get_all_tools.return_value = [mock_tool]
@@ -80,8 +80,8 @@ class TestCLI:
         )
 
         with patch('os.path.isfile', return_value=True), \
-             patch('src.cli.CompilerDetector') as mock_detector, \
-             patch('src.cli.CompilationEngine') as mock_engine:
+             patch('src.cli.cli.CompilerDetector') as mock_detector, \
+             patch('src.cli.cli.CompilationEngine') as mock_engine:
 
             mock_tool = {'name': 'gcc'}
             mock_detector.return_value.get_tool_for_file.return_value = mock_tool
@@ -123,8 +123,8 @@ class TestCLI:
         )
 
         with patch('os.path.isfile', return_value=True), \
-             patch('src.cli.CompilerDetector') as mock_detector, \
-             patch('src.cli.CompilationEngine') as mock_engine:
+             patch('src.cli.cli.CompilerDetector') as mock_detector, \
+             patch('src.cli.cli.CompilationEngine') as mock_engine:
 
             mock_tool = {'name': 'PyInstaller', 'type': 'packager'}
             mock_detector.return_value.get_all_tools.return_value = [mock_tool]
@@ -146,7 +146,7 @@ class TestCLI:
         args = Namespace(file='script.py', tool=None, output=None, args=None, target=None)
 
         with patch('os.path.isfile', return_value=True), \
-            patch('src.cli.CompilerDetector') as mock_detector, \
+            patch('src.cli.cli.CompilerDetector') as mock_detector, \
             patch('sys.exit') as mock_exit, \
             patch('sys.stderr'):
 
@@ -164,7 +164,7 @@ class TestCLI:
         """Prueba el comando analyze desde main."""
         args = ['compilador-cli', 'analyze', '/tmp']
         with patch('sys.argv', args), \
-             patch('src.cli.analyze_project') as mock_analyze:
+             patch('src.cli.cli.analyze_project') as mock_analyze:
             main()
             mock_analyze.assert_called_once()
 
@@ -172,7 +172,7 @@ class TestCLI:
         """Prueba el comando generate desde main."""
         args = ['compilador-cli', 'generate', '/tmp']
         with patch('sys.argv', args), \
-             patch('src.cli.generate_files') as mock_generate:
+             patch('src.cli.cli.generate_files') as mock_generate:
             main()
             mock_generate.assert_called_once()
 
@@ -180,6 +180,6 @@ class TestCLI:
         """Prueba el comando enhance desde main."""
         args = ['compilador-cli', 'enhance', '/tmp', '--ai']
         with patch('sys.argv', args), \
-             patch('src.cli.enhance_files') as mock_enhance:
+             patch('src.cli.cli.enhance_files') as mock_enhance:
             main()
             mock_enhance.assert_called_once()

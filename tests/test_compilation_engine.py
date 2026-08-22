@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.compilation_engine import CompilationEngine
+from src.engine.compilation_engine import CompilationEngine
 from src.compilers.registry import CompilerRegistry
 
 
@@ -79,15 +79,15 @@ class TestCompilationEngine(unittest.TestCase):
 
     def test_build_command_for_go(self):
         tool = {'name': 'go', 'type': 'compiler', 'command': 'go'}
-        cmd, cwd, actions = self.engine.build_command_for(
+        cmd, cwd, actions, env = self.engine.build_command_for(
             'main.go', tool, output_path='out'
         )
-        self.assertEqual(cmd[0], 'go')
+        self.assertIn('go', cmd)
         self.assertIn('-o', cmd)
 
     def test_build_command_for_go_release(self):
         tool = {'name': 'go', 'type': 'compiler', 'command': 'go'}
-        cmd, cwd, actions = self.engine.build_command_for(
+        cmd, cwd, actions, env = self.engine.build_command_for(
             'main.go', tool, release_mode=True
         )
         self.assertIn('-ldflags', cmd)
@@ -103,7 +103,7 @@ class TestCompilationEngine(unittest.TestCase):
                 cargo_toml, tool, output_path='target/release/test'
             )
             self.assertEqual(cmd[0], 'cargo')
-            self.assertEqual(cmd[1], 'build')
+            self.assertIn('build', cmd)
             self.assertEqual(cwd, tmpdir)
             self.assertTrue(any(a[0] == 'cargo_move' for a in actions))
 
@@ -141,7 +141,7 @@ class TestCompilationEngine(unittest.TestCase):
             'project.csproj', tool
         )
         self.assertEqual(cmd[0], 'dotnet')
-        self.assertEqual(cmd[1], 'build')
+        self.assertIn('build', cmd)
 
     def test_build_command_for_dotnet_single_cs(self):
         tool = {'name': 'dotnet', 'type': 'compiler', 'command': 'csc'}

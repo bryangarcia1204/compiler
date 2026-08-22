@@ -15,7 +15,7 @@ from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from . import logger
+from ..utils import logger
 
 log = logger.Logger()
 

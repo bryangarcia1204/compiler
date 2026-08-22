@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from . import logger
+from ..utils import logger
 
 log = logger.Logger()
 

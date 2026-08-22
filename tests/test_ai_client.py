@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from src.ai_client import AIClient
+from src.utils.ai_client import AIClient
 
 
 class TestAIClient:
@@ -16,7 +16,7 @@ class TestAIClient:
 
     def test_init_openai_client(self):
         """Prueba la inicialización del cliente OpenAI."""
-        with patch('src.ai_client.OPENAI_AVAILABLE', True):
+        with patch('src.utils.ai_client.OPENAI_AVAILABLE', True):
             client = AIClient(
                 provider='openai',
                 api_key='fake-key',
@@ -28,7 +28,7 @@ class TestAIClient:
 
     def test_init_plataformia_client(self):
         """Prueba la inicialización del cliente PlataformIA."""
-        with patch('src.ai_client.OPENAI_AVAILABLE', True):
+        with patch('src.utils.ai_client.OPENAI_AVAILABLE', True):
             client = AIClient(
                 provider='plataformia',
                 api_key='pk-fake',
@@ -57,7 +57,7 @@ class TestAIClient:
 
     def test_chat_openai_mock(self):
         """Prueba el método chat con mock de OpenAI."""
-        with patch('src.ai_client.OPENAI_AVAILABLE', True):
+        with patch('src.utils.ai_client.OPENAI_AVAILABLE', True):
             mock_response = MagicMock()
             mock_response.choices = [MagicMock()]
             mock_response.choices[0].message.content = "Hello, World!"
@@ -75,7 +75,7 @@ class TestAIClient:
 
     # def test_chat_tinyllama_mock(self):
     #     """Prueba el método chat con TinyLlama."""
-    #     with patch('src.ai_client.LLAMA_CPP_AVAILABLE', True):
+    #     with patch('src.utils.ai_client.LLAMA_CPP_AVAILABLE', True):
     #         mock_llama = MagicMock()
     #         mock_llama.return_value = {
     #             'choices': [{'text': 'Hola, soy TinyLlama'}]
@@ -116,7 +116,7 @@ class TestAIClient:
 
     def test_generate_code(self):
         """Prueba la generación de código."""
-        with patch('src.ai_client.OPENAI_AVAILABLE', True):
+        with patch('src.utils.ai_client.OPENAI_AVAILABLE', True):
             mock_response = MagicMock()
             mock_response.choices = [MagicMock()]
             mock_response.choices[0].message.content = "print('Hello')"
@@ -135,7 +135,7 @@ class TestAIClient:
 
     def test_analyze_project_json(self):
         """Prueba el análisis de proyecto con respuesta JSON."""
-        with patch('src.ai_client.OPENAI_AVAILABLE', True):
+        with patch('src.utils.ai_client.OPENAI_AVAILABLE', True):
             mock_response = MagicMock()
             mock_response.choices = [MagicMock()]
             mock_response.choices[0].message.content = '{"project_type": "extension"}'

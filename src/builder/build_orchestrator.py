@@ -7,9 +7,9 @@ Ejecuta pasos en el orden correcto según dependencias usando reglas.
 import os
 import subprocess
 from typing import List, Dict, Optional, Any
-from .compilador_config import CompiladorConfig
+from ..config.compilador_config import CompiladorConfig
 
-from . import logger
+from ..utils import logger
 
 log = logger.Logger()
 
@@ -83,7 +83,7 @@ class BuildOrchestrator:
 
     def _add_auto_step(self, language: str, project_info: Dict):
         """Añade un paso automático para un lenguaje usando la estrategia correspondiente"""
-        from .compilers.registry import CompilerRegistry
+        from ..compilers.registry import CompilerRegistry
         strategy = CompilerRegistry.get(language)
         if strategy:
             cmd, cwd, post_action = strategy.build_command(project_info["main_files"],project_info["project_dir"],project_info.get("extra_args"), release_mode=True)

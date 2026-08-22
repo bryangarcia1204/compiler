@@ -10,15 +10,15 @@ import sys
 import os
 import json
 import yaml
-from .compiler_detector import CompilerDetector
-from .compilation_engine import CompilationEngine
-from .proyect_editor.project_analyzer import ProjectAnalyzer
-from .proyect_editor.project_generator import ProjectGenerator
-from .output_types import OUTPUT_TYPE_MAP
-from . import logger
-from .compilador_config import CompiladorConfig
-from .plugins_market.plugin_manager import PluginManager
-from .plugins_market.plugin_loader import PluginLoader
+from ..detector.compiler_detector import CompilerDetector
+from ..engine.compilation_engine import CompilationEngine
+from ..proyect_editor.project_analyzer import ProjectAnalyzer
+from ..proyect_editor.project_generator import ProjectGenerator
+from ..utils.output_types import OUTPUT_TYPE_MAP
+from ..utils import logger
+from ..config.compilador_config import CompiladorConfig
+from ..plugins_market.plugin_manager import PluginManager
+from ..plugins_market.plugin_loader import PluginLoader
 
 log = logger.Logger()
 
@@ -627,7 +627,6 @@ def compile_file(args):
 
     # ── CARGAR .compilador ──
     project_dir = os.path.dirname(file_path)
-    from .compilador_config import CompiladorConfig
     config = CompiladorConfig(project_dir, auto_create=True)
 
     # ── DETECTAR LENGUAJE ──
@@ -801,7 +800,6 @@ def build_project(args):
         sys.exit(1)
 
     # ── CARGAR .compilador ──
-    from .compilador_config import CompiladorConfig
     config = CompiladorConfig(directory, auto_create=True)
 
     # ── SI .compilador TIENE PASOS DE BUILD ──
@@ -837,7 +835,7 @@ def build_project(args):
     project_info = analyzer.analyze()
 
     # Crear orquestador
-    from .build_orchestrator import BuildOrchestrator
+    from ..builder.build_orchestrator import BuildOrchestrator
     orchestrator = BuildOrchestrator(directory)
     orchestrator.create_pipeline(project_info)
 
@@ -869,7 +867,7 @@ def enhance_config_command(args):
         sys.exit(1)
 
     # Crear cliente de IA
-    from .ai_client import AIClient
+    from ..utils.ai_client import AIClient
     ai_client = AIClient(
         provider=ai_config.get('provider'),
         api_key=ai_config.get('api_key'),

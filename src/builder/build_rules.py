@@ -4,7 +4,7 @@ Sistema de reglas para orquestación de builds multi-lenguaje.
 Cada regla define qué produce, qué necesita y cómo ejecutarse.
 """
 import platform
-from .compiler_detector import CompilerDetector
+from ..detector.compiler_detector import CompilerDetector
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum

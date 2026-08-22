@@ -23,8 +23,8 @@ except ImportError:
     except ImportError:
         tomllib = None
 
-from ..ai_client import AIClient
-from .. import logger
+from ..utils.ai_client import AIClient
+from ..utils import logger
 
 log = logger.Logger()
 
@@ -232,7 +232,7 @@ class ProjectAnalyzer:
         Realiza el análisis completo del proyecto.
         """
         log.info(f"[ProjectAnalyzer] Analizando proyecto en: {self.project_dir}")
-        from ..compilador_config import CompiladorConfig
+        from ..config.compilador_config import CompiladorConfig
         self.compilador = CompiladorConfig(str(self.project_dir), auto_create=True)
 
         # 1. Escanear archivos
@@ -327,7 +327,7 @@ class ProjectAnalyzer:
 
     def _save_tools_to_compilador(self):
         """Guarda las herramientas detectadas en el .compilador."""
-        from ..compiler_detector import CompilerDetector
+        from ..detector.compiler_detector import CompilerDetector
         tools = CompilerDetector.get_all_tools()
         tools_info = {
             tool.get('name'): {
@@ -1715,7 +1715,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
         Detecta qué artefactos necesita y produce el proyecto.
         Usa las reglas de build para inferir el orden y las dependencias.
         """
-        from ..build_rules import BuildRules
+        from ..builder.build_rules import BuildRules
 
         languages = list(self.summary['languages'].keys())
         rules = BuildRules.build_order(languages, self.summary)

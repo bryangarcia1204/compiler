@@ -2,7 +2,7 @@
 import os
 from typing import List, Tuple, Optional, Any, Dict
 from ..base import CompilerStrategy
-from ...target_manager import TargetManager
+from ...utils.target_manager import TargetManager
 
 
 class GoStrategy(CompilerStrategy):

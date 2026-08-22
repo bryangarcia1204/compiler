@@ -8,11 +8,11 @@ from unittest.mock import patch, MagicMock
 # Añadir src al path para imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.compiler_detector import CompilerDetector, _get_python_cmd, _get_version
-from src.language_detector import LanguageDetector
-from src.error_parser import ErrorParser
-from src.argument_suggester import ArgumentSuggester
-from src.output_types import OUTPUT_TYPE_MAP
+from src.detector.compiler_detector import CompilerDetector, _get_python_cmd, _get_version
+from src.detector.language_detector import LanguageDetector
+from src.utils.error_parser import ErrorParser
+from src.utils.argument_suggester import ArgumentSuggester
+from src.utils.output_types import OUTPUT_TYPE_MAP
 
 
 class TestCompilerDetector(unittest.TestCase):
@@ -300,7 +300,7 @@ class TestCompilationEngine(unittest.TestCase):
 
     def setUp(self):
         """Configuración antes de cada prueba."""
-        from src.compilation_engine import CompilationEngine
+        from src.engine.compilation_engine import CompilationEngine
         self.engine = CompilationEngine()
 
     def test_build_command_for_interpreter(self):
@@ -325,7 +325,7 @@ class TestCompilationEngine(unittest.TestCase):
     def test_build_command_for_go(self):
         """Prueba la construcción de comandos para Go."""
         tool = {'type': 'compiler', 'name': 'go'}
-        cmd, cwd, actions = self.engine.build_command_for(
+        cmd, cwd, actions, env = self.engine.build_command_for(
             'main.go', tool, release_mode=True
         )
         self.assertIsNotNone(cmd)
@@ -367,7 +367,7 @@ class TestCompilerDetectorAdvanced(unittest.TestCase):
         # Primera llamada
         tools1 = CompilerDetector.get_all_tools()
         # Segunda llamada (debería usar caché)
-        with patch('src.compiler_detector._get_version') as mock_version:
+        with patch('src.detector.compiler_detector._get_version') as mock_version:
             # No debería llamarse a _get_version si usa caché
             tools2 = CompilerDetector.get_all_tools()
             mock_version.assert_not_called()
@@ -375,7 +375,7 @@ class TestCompilerDetectorAdvanced(unittest.TestCase):
 
     def test_force_refresh(self):
         """Verifica que force_refresh invalida la caché."""
-        with patch('src.compiler_detector._get_version') as mock_version:
+        with patch('src.detector.compiler_detector._get_version') as mock_version:
             # Primera llamada con force_refresh=True
             CompilerDetector.get_all_tools(force_refresh=True)
             # Debería haberse llamado a _get_version al menos una vez

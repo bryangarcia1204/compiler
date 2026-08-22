@@ -7,7 +7,7 @@ import json
 import urllib.request
 import urllib.error
 from typing import List, Dict, Optional, Any
-from .. import logger
+from ..utils import logger
 
 log = logger.Logger()
 

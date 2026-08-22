@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtWidgets import QMenu, QAction
 
-from ... import logger
+from ...utils import logger
 log = logger.Logger()
 
 

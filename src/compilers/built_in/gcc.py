@@ -2,7 +2,7 @@
 import os
 from typing import List, Tuple, Optional, Any, Dict
 from ..base import CompilerStrategy
-from ...target_manager import TargetManager
+from ...utils.target_manager import TargetManager
 
 
 class GCCStrategy(CompilerStrategy):
@@ -56,17 +56,17 @@ class GCCStrategy(CompilerStrategy):
             cmd.append('-shared')
         elif output_type in ('a', 'lib'):
             cmd.append('-c')
-            if output_path:
-                obj_path = output_path.replace('.a', '.o').replace('.lib', '.obj')
+            if out:
+                obj_path = out.replace('.a', '.o').replace('.lib', '.obj')
                 cmd.extend(['-o', obj_path])
-                post_actions = [('archive', (obj_path, output_path))]
+                post_actions = [('archive', (obj_path, out))]
             else:
                 post_actions = []
         else:
             post_actions = []
 
-        if output_path and output_type not in ('a', 'lib'):
-            cmd.extend(['-o', output_path])
+        if out and output_type not in ('a', 'lib'):
+            cmd.extend(['-o', out])
 
         if extra_args:
             cmd.extend(extra_args)

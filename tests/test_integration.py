@@ -14,7 +14,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_language_detection_integration(self):
         """Prueba la detección de lenguaje con archivos reales."""
-        from src.language_detector import LanguageDetector
+        from src.detector.language_detector import LanguageDetector
         
         # Crear archivos temporales con delete=False y cerrar explícitamente
         with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as f:
@@ -35,7 +35,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_error_parser_integration(self):
         """Prueba el parser de errores con salida real de compilación."""
-        from src.error_parser import ErrorParser
+        from src.utils.error_parser import ErrorParser
         
         # Simular salida de GCC
         gcc_output = """main.c:10:5: error: 'x' undeclared (first use in this function)
@@ -47,7 +47,7 @@ main.c:15:3: warning: implicit declaration of function 'printf'"""
 
     def test_argument_suggester_integration(self):
         """Prueba el sugeridor de argumentos con herramientas reales."""
-        from src.argument_suggester import ArgumentSuggester
+        from src.utils.argument_suggester import ArgumentSuggester
         
         # GCC debería tener argumentos
         gcc_args = ArgumentSuggester.get_arguments_for_tool('gcc')

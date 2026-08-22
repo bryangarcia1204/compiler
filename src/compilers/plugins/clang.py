@@ -2,7 +2,7 @@
 import os
 from typing import List, Tuple, Optional, Any, Dict
 from src.compilers.base import CompilerStrategy
-from src.target_manager import TargetManager
+from src.utils.target_manager import TargetManager
 
 
 class ClangStrategy(CompilerStrategy):

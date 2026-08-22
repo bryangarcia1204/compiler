@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 from src.proyect_editor.project_analyzer import ProjectAnalyzer
-from src.ai_client import AIClient
+from src.utils.ai_client import AIClient
 
 
 @pytest.fixture

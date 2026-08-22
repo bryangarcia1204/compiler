@@ -5,7 +5,7 @@ import subprocess
 import threading
 import pathlib
 import platform
-from . import logger as logger
+from .utils import logger as logger
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QTextEdit, QFileDialog, QMessageBox, QLineEdit,
@@ -14,15 +14,15 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QIcon
 
-from .target_manager import TargetManager
-from .argument_suggester import ArgumentSuggester
-from .language_detector import LanguageDetector
-from .compiler_detector import CompilerDetector
-from .compilation_engine import CompilationEngine
-from .error_parser import ErrorParser
-from .output_types import OUTPUT_TYPE_MAP
-from .config_manager import load_config, save_config
-from .compilador_config import CompiladorConfig
+from .utils.target_manager import TargetManager
+from .utils.argument_suggester import ArgumentSuggester
+from .detector.language_detector import LanguageDetector
+from .detector.compiler_detector import CompilerDetector
+from .engine.compilation_engine import CompilationEngine
+from .utils.error_parser import ErrorParser
+from .utils.output_types import OUTPUT_TYPE_MAP
+from .config.config_manager import load_config, save_config
+from .config.compilador_config import CompiladorConfig
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -280,7 +280,7 @@ class MainWindow(QMainWindow):
     def _load_compilador_for_project(self):
         """Carga .compilador del proyecto actual"""
         try:
-            from .compilador_config import CompiladorConfig
+            from .config.compilador_config import CompiladorConfig
             # Buscar .compilador en el directorio actual o en el directorio del archivo
             search_dirs = [os.getcwd()]
             if self.current_file:
@@ -746,7 +746,7 @@ class MainWindow(QMainWindow):
 
             project_dir = os.path.dirname(file_path)
             try:
-                from .compilador_config import CompiladorConfig
+                from .config.compilador_config import CompiladorConfig
                 config = CompiladorConfig(project_dir, auto_create=True)
                 self.compilador_config = config
                 self.compilation_engine.config = config

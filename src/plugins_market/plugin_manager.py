@@ -15,7 +15,7 @@ from datetime import datetime
 from .plugin_registry import PluginRegistry, PluginMetadata, PluginStatus
 from .plugin_loader import PluginLoader
 from .market_client import MarketClient
-from .. import logger
+from ..utils import logger
 
 log = logger.Logger()
 

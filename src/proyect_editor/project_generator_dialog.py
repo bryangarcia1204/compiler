@@ -21,12 +21,12 @@ from PyQt5.QtGui import QFont
 
 from .project_generator import ProjectGenerator
 from .project_analyzer import ProjectAnalyzer
-from ..compilation_engine import CompilationEngine
-from ..compiler_detector import CompilerDetector
-from ..config_manager import load_project_state, save_project_state
+from ..engine.compilation_engine import CompilationEngine
+from ..detector.compiler_detector import CompilerDetector
+from ..config.config_manager import load_project_state, save_project_state
 from .output_types_analyzer import OUTPUT_TYPE_MAP_ANALIZER
-from ..target_manager import TargetManager
-from .. import logger
+from ..utils.target_manager import TargetManager
+from ..utils import logger
 
 log = logger.Logger()
 
@@ -381,7 +381,7 @@ class ProjectGeneratorDialog(QMainWindow):
 
     def build_all_projects(self):
         """Ejecuta el pipeline de construcción multi-lenguaje."""
-        from ..build_orchestrator import BuildOrchestrator
+        from ..builder.build_orchestrator import BuildOrchestrator
 
         # Guardar archivos primero
         self.save_files()
@@ -433,7 +433,7 @@ class ProjectGeneratorDialog(QMainWindow):
         self.project_info = self.analyzer.analyze()
 
         # ── CARGAR/CREAR .compilador ──
-        from ..compilador_config import CompiladorConfig
+        from ..config.compilador_config import CompiladorConfig
         self.compilador = CompiladorConfig(self.project_dir, auto_create=True)
 
         

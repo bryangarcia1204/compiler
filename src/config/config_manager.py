@@ -8,7 +8,7 @@ import os
 import platform
 from pathlib import Path
 from typing import Dict, Optional, Any
-from .logger import Logger
+from ..utils.logger import Logger
 
 log = Logger()
 

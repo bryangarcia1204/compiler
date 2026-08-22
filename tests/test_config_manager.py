@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from src.config_manager import (
+from src.config.config_manager import (
     load_config, save_config, load_project_state,
     save_project_state, clear_project_state, CONFIG_DIR
 )
@@ -24,10 +24,10 @@ class TestConfigManager:
         self.original_config_dir = CONFIG_DIR
 
         # Parchear CONFIG_DIR
-        import src.config_manager
-        src.config_manager.CONFIG_DIR = Path(self.temp_dir)
-        src.config_manager.CONFIG_PATH = src.config_manager.CONFIG_DIR / 'config.json'
-        src.config_manager.PROJECT_STATE_PATH = src.config_manager.CONFIG_DIR / 'project_state.json'
+        import src.config.config_manager
+        src.config.config_manager.CONFIG_DIR = Path(self.temp_dir)
+        src.config.config_manager.CONFIG_PATH = src.config.config_manager.CONFIG_DIR / 'config.json'
+        src.config.config_manager.PROJECT_STATE_PATH = src.config.config_manager.CONFIG_DIR / 'project_state.json'
 
     def teardown_method(self):
         """Limpieza después de cada prueba."""

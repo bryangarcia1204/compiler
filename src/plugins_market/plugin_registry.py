@@ -116,7 +116,7 @@ class PluginRegistry:
                     for plugin_id, plugin_data in data.items():
                         self._plugins[plugin_id] = PluginMetadata.from_dict(plugin_data)
             except Exception as e:
-                from .. import logger
+                from ..utils import logger
                 log = logger.Logger()
                 log.error(f"[PluginRegistry] Error cargando registro: {e}")
         self._loaded = True
@@ -130,13 +130,13 @@ class PluginRegistry:
             with open(registry_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            from .. import logger
+            from ..utils import logger
             log = logger.Logger()
             log.error(f"[PluginRegistry] Error guardando registro: {e}")
 
     def _get_registry_path(self):
         from pathlib import Path
-        from ..config_manager import CONFIG_DIR
+        from ..config.config_manager import CONFIG_DIR
         
         return CONFIG_DIR / self.REGISTRY_FILE
 

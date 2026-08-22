@@ -6,9 +6,9 @@ import platform
 import shutil
 from typing import Optional, Dict
 
-from . import logger
-from .compilers.registry import CompilerRegistry
-from .language_detector import LanguageDetector
+from ..utils import logger
+from ..compilers.registry import CompilerRegistry
+from ..detector.language_detector import LanguageDetector
 
 log = logger.Logger()
 
@@ -32,7 +32,7 @@ class CompilationEngine:
         self.config = None
         self.detector = LanguageDetector()
         if project_dir:
-            from .compilador_config import CompiladorConfig
+            from ..config.compilador_config import CompiladorConfig
             self.config = CompiladorConfig(project_dir, auto_create=False)
             
     def _get_build_command_from_config(self, language: str) -> Optional[str]:
@@ -85,18 +85,24 @@ class CompilationEngine:
             if shutil.which('emcc'):
                 log.debug("[CompilationEngine] Usando emcc para WASM")
                 cmd = ['emcc', file_path, '-o', output_path or (os.path.splitext(file_path)[0] + '.wasm')]
-                return cmd, None, [], {}
+                return cmd, None, []
             if shutil.which('wasm-pack'):
                 log.debug("[CompilationEngine] Usando wasm-pack para WASM")
                 cmd = ['wasm-pack', 'build']
                 cwd = os.path.dirname(file_path) or None
-                return cmd, cwd, [], {}
+                return cmd, cwd, []
 
         # ── 2. OBTENER NOMBRE DE LA HERRAMIENTA Y LENGUAJE ──
-        name = (tool.get('name') or tool.get('command') or '').lower()
+        name = (tool.get('name') if tool.get('name') else tool.get('command') or '').lower()
         language = self.detector.detect(file_path)
 
-        # ── 3. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
+        # ── 3. DELEGAR EN ESTRATEGIA ──
+        strategy = CompilerRegistry.get(name)
+        if strategy:
+            log.debug(f"[CompilationEngine] Usando estrategia para: {name}")
+            return strategy.build_command(file_path, output_path, extra_args, output_type, release_mode, target)
+
+        # ── 4. VERIFICAR SI .compilador TIENE UN COMANDO DEFINIDO ──
         if self.config and language:
             config_cmd = self._get_build_command_from_config(language.get("language", "").lower())
             if config_cmd:
@@ -110,12 +116,6 @@ class CompilationEngine:
                     cmd_parts = [p.replace('{target}', target) for p in cmd_parts]
                 # Variables de entorno
                 return cmd_parts, None, []
-
-        # ── 4. DELEGAR EN ESTRATEGIA ──
-        strategy = CompilerRegistry.get(name)
-        if strategy:
-            log.debug(f"[CompilationEngine] Usando estrategia para: {name}")
-            return strategy.build_command(file_path, output_path, extra_args, output_type, release_mode, target)
 
         # ── 5. FALLBACK LEGACY ──
         log.debug(f"[CompilationEngine] Sin estrategia para '{name}', usando fallback original")

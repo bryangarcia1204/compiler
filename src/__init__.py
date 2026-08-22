@@ -16,17 +16,17 @@ __license__ = "MIT"
 
 # Importar componentes principales para facilitar el uso.
 from src.main import main
-from src.compiler_detector import CompilerDetector
-from src.language_detector import LanguageDetector
-from src.compilation_engine import CompilationEngine
-from src.error_parser import ErrorParser
-from src.argument_suggester import ArgumentSuggester
-from src.output_types import OUTPUT_TYPE_MAP
-from src.logger import Logger
+from src.detector.compiler_detector import CompilerDetector
+from src.detector.language_detector import LanguageDetector
+from src.engine.compilation_engine import CompilationEngine
+from src.utils.error_parser import ErrorParser
+from src.utils.argument_suggester import ArgumentSuggester
+from src.utils.output_types import OUTPUT_TYPE_MAP
+from src.utils.logger import Logger
 from src.proyect_editor.project_analyzer import ProjectAnalyzer
 from src.proyect_editor.project_generator import ProjectGenerator
 from src.proyect_editor.project_generator_dialog import ProjectGeneratorDialog
-from src.ai_client import AIClient
+from src.utils.ai_client import AIClient
 from src.proyect_editor.template_loader import TemplateLoader
 from src.module import cpp_module
 

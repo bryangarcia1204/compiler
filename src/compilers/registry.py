@@ -34,7 +34,7 @@ class CompilerRegistry:
         # Cargar builtins
         try:
             from . import built_in
-            for module_info in pkgutil.iter_modules(built_in.__path__, prefix='src.compilers.builtin.'):
+            for module_info in pkgutil.iter_modules(built_in.__path__, prefix='src.compilers.built_in.'):
                 module = importlib.import_module(module_info.name)
                 if hasattr(module, 'STRATEGY_CLASS'):
                     cls.register(module.STRATEGY_CLASS)

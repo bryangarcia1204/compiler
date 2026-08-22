@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 
 from .editor_widget import CodeEditor
-from ... import logger
+from ...utils import logger
 
 log = logger.Logger()
 

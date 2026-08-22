@@ -7,7 +7,7 @@ import os
 import json
 from typing import Dict, List, Optional
 
-from .. import logger
+from ..utils import logger
 
 log = logger.Logger()
 

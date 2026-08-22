@@ -15,7 +15,7 @@ from PyQt5.QtGui import QFont
 from typing import Optional
 from .plugin_manager import PluginManager
 from .plugin_registry import PluginStatus
-from .. import logger
+from ..utils import logger
 
 log = logger.Logger()
 

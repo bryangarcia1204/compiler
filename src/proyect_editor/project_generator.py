@@ -10,10 +10,10 @@ import copy
 from typing import Dict, List, Optional, Any, Counter
 
 from .template_loader import TemplateLoader
-from ..ai_client import AIClient
-from .. import logger
+from ..utils.ai_client import AIClient
+from ..utils import logger
 from ..compilers.registry import CompilerRegistry
-from ..target_manager import TargetManager
+from ..utils.target_manager import TargetManager
 
 log = logger.Logger()
 
