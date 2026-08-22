@@ -202,16 +202,16 @@ def plugin_list():
     for p in plugins:
         loaded = PluginLoader.is_loaded(p.id)
         status = "✅ Cargado" if loaded else "⏸️ Instalado"
-        print(f"  {p.name} ({p.version}) - {status}")
+        print(f"[CLI] {p.name} ({p.version}) - {status}")
         if p.description:
-            print(f"    {p.description}")
+            print(f"[CLI] {p.description}")
     print("-" * 70)
 
     # Plugins cargados que no están en el registro
     loaded_ids = PluginLoader.get_loaded_ids()
     for pid in loaded_ids:
         if not any(p.id == pid for p in plugins):
-            print(f"  {pid} - ✅ Cargado automáticamente")
+            print(f"[CLI]  {pid} - ✅ Cargado automáticamente")
     print("-" * 70)
 
 
