@@ -4,7 +4,7 @@ import os
 import queue
 import platform
 import shutil
-from typing import Optional, Dict
+from typing import Optional
 
 from ..utils import logger
 from ..compilers.registry import CompilerRegistry
@@ -34,14 +34,14 @@ class CompilationEngine:
         if project_dir:
             from ..config.compilador_config import CompiladorConfig
             self.config = CompiladorConfig(project_dir, auto_create=False)
-            
+
     def _get_build_command_from_config(self, language: str) -> Optional[str]:
         """Obtiene comando de build desde .compilador"""
         if self.config:
             return self.config.get_build_command_for_language(language)
         return None
 
-    def build_package_command(self, file_path, tool, output_path=None, extra_args=None, target = "native"):
+    def build_package_command(self, file_path, tool, output_path=None, extra_args=None, target="native"):
         """Construye (cmd, cwd, post_actions) para empaquetar."""
         extra_args = extra_args or []
         name = (tool.get('name') or '').lower()
@@ -130,8 +130,8 @@ class CompilationEngine:
         """
         extra_args = extra_args or []
         cmd = None
-        cwd = None
         post_actions = []
+
         out = output_path
 
         # Fallback for C/C++ and other compilers
@@ -152,7 +152,7 @@ class CompilationEngine:
                 cmd.append('-shared')
             if output_type in ('obj',):
                 cmd.append('-c')
-            cmd.extend([ out, '-o', file_path])
+            cmd.extend([out, '-o', file_path])
             if extra_args:
                 cmd.extend(extra_args)
             return cmd, None, post_actions
@@ -170,7 +170,7 @@ class CompilationEngine:
         return None, None, []
 
     def build_compile_command(self, file_path, tool, output_path=None, extra_args=None,
-                              output_type='', release_mode=False, target = 'native'):
+                              output_type='', release_mode=False, target='native'):
         """Alias para build_command_for."""
         return self.build_command_for(file_path, tool, output_path, extra_args, output_type, release_mode, target)
 
@@ -240,7 +240,7 @@ class CompilationEngine:
                 log.error(f"Post action failed: {e}")
 
     def compile(self, file_path, tool, output_path=None, extra_args=None,
-                output_type='', release_mode=False, target = 'native'):
+                output_type='', release_mode=False, target='native'):
         """Compila o interpreta un archivo usando la herramienta especificada."""
         cmd, cwd, post_actions = self.build_compile_command(
             file_path, tool, output_path, extra_args, output_type, release_mode, target

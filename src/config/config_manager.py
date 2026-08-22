@@ -7,7 +7,7 @@ import json
 import os
 import platform
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional
 from ..utils.logger import Logger
 
 log = Logger()

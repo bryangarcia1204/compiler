@@ -266,7 +266,7 @@ class CompilerDetector:
                         'extensions': ['.js', '.ts', '.jsx', '.tsx'],
                         'type': 'packager'
                     })
-                    
+
             CompilerDetector._cached_tools = tools
             CompilerDetector._detecting = False
             return tools

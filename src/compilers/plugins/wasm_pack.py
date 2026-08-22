@@ -49,4 +49,5 @@ class WasmPackStrategy(CompilerStrategy):
         # PyInstaller no necesita archivos de configuración específicos
         return {}
 
+
 STRATEGY_CLASS = WasmPackStrategy

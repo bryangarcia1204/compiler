@@ -165,7 +165,7 @@ main_script = "{main_script}"
 resources = ["."]
 
 [target]
-# Target: {target}
+# Target: {target_triple}
 build_mode = "release"
 
 [target.output]

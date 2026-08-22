@@ -7,9 +7,8 @@ Permite abrir, editar y guardar cualquier archivo.
 import os
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog,
-    QMessageBox, QWidget, QLabel, QLineEdit
+    QMessageBox, QLabel, QLineEdit
 )
-from PyQt5.QtCore import Qt
 
 from .editor_widget import CodeEditor
 from ...utils import logger

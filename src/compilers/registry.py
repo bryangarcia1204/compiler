@@ -4,6 +4,7 @@ from typing import Dict, Optional, Type
 
 from .base import CompilerStrategy
 
+
 class CompilerRegistry:
     _strategies: Dict[str, Type[CompilerStrategy]] = {}
     _loaded = False

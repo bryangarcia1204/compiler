@@ -27,7 +27,6 @@ class GoStrategy(CompilerStrategy):
         out = output_path or os.path.splitext(file_path)[0]
 
         # Go cross-compilation via environment variables
-        
         if target != 'native':
             env = {}
             target_info = TargetManager.get_target(target)

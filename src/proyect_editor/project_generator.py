@@ -5,15 +5,13 @@ Módulo para generar archivos de configuración usando plantillas o IA.
 
 import os
 import json
-import re
 import copy
-from typing import Dict, List, Optional, Any, Counter
+from typing import Dict, Optional, Any, Counter
 
 from .template_loader import TemplateLoader
 from ..utils.ai_client import AIClient
 from ..utils import logger
 from ..compilers.registry import CompilerRegistry
-from ..utils.target_manager import TargetManager
 
 log = logger.Logger()
 
@@ -59,7 +57,7 @@ class ProjectGenerator:
     # ──────────────────────────────────────────────────────────
     # 1. GENERACIÓN DE ARCHIVOS (PUNTO DE ENTRADA)
     # ──────────────────────────────────────────────────────────
-    def generate_config_files(self, project_info: Dict, custom_prompt: str = "", targets:list[str]= ['native']) -> Dict[str, str]:
+    def generate_config_files(self, project_info: Dict, custom_prompt: str = "", targets: list[str] = ['native']) -> Dict[str, str]:
         """
         Genera archivos de configuración usando plantillas o IA.
 
@@ -74,7 +72,6 @@ class ProjectGenerator:
         language = project_info.get('main_language') or project_info.get('language') or project_info.get('type', 'python')
         project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
         project_type = project_info.get('project_type', 'application')
-        
 
         # Usar IA si está disponible y hay prompt personalizado
         if self.use_ai and self.ai_client:
@@ -100,13 +97,10 @@ class ProjectGenerator:
                 if ext in strategy.supported_extensions:
                     if hasattr(strategy, 'generate_config_files'):
                         return strategy.generate_config_files(project_info, target)
-                    
+
         return self._generate_with_templates(language, project_name, project_type, project_info)
 
-
-         
-
-    def _generate_with_ai(self, language: str, custom_prompt: str = None, project_info: Dict = None, targets:list[str]= ['native']) -> Dict[str, str]:
+    def _generate_with_ai(self, language: str, custom_prompt: str = None, project_info: Dict = None, targets: list[str] = ['native']) -> Dict[str, str]:
         """Genera archivos usando el AIClient. Recibe TODO el project_info."""
         if not self.ai_client:
             log.warning("[ProjectGenerator] AIClient no disponible, usando plantillas")
@@ -157,10 +151,10 @@ class ProjectGenerator:
 
             if targets is None:
                 targets = ['native']
-    
+
             # Obtener todas las estrategias registradas (builtins + plugins)
             all_strategies = CompilerRegistry.get_all()
-    
+
             for target in targets:
                 for strategy_class in all_strategies.values():
                     strategy = strategy_class()
@@ -169,7 +163,7 @@ class ProjectGenerator:
                     if ext in strategy.supported_extensions:
                         if hasattr(strategy, 'generate_config_files'):
                             return strategy.generate_config_files(project_info, target)
-                            
+
         except Exception as e:
             log.error(f"[ProjectGenerator] Error con IA: {e}")
             return self._generate_with_templates(language, "", "", project_info)
@@ -516,6 +510,7 @@ Thumbs.db
     # ──────────────────────────────────────────────────────────
     # 6. MEJORA DE ARCHIVOS CON IA
     # ──────────────────────────────────────────────────────────
+
     def enhance_files_with_ai(
         self,
         project_info: Dict,
@@ -539,7 +534,6 @@ Thumbs.db
             for name, content in list(existing_files.items())[:5]
         ])
 
-        
         prompt = f"""Eres un experto en desarrollo de software. Revisa TODOS los datos del proyecto y mejora los archivos de configuración.
 
         DATOS COMPLETOS DEL PROYECTO (en JSON):

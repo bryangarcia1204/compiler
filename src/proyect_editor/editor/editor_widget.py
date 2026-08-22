@@ -5,9 +5,9 @@ Basado en QScintilla, soporta múltiples lenguajes.
 """
 
 import os
-from PyQt5.Qsci import QsciScintilla, QsciLexerCPP, QsciLexerPython, QsciLexerJavaScript # type: ignore
-from PyQt5.Qsci import QsciLexerMarkdown, QsciLexerJSON, QsciLexerXML, QsciLexerYAML # type: ignore
-from PyQt5.QtCore import Qt 
+from PyQt5.Qsci import QsciScintilla, QsciLexerCPP, QsciLexerPython, QsciLexerJavaScript  # type: ignore
+from PyQt5.Qsci import QsciLexerMarkdown, QsciLexerJSON, QsciLexerXML, QsciLexerYAML  # type: ignore
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtWidgets import QMenu, QAction
 

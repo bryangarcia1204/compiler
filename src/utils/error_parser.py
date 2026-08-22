@@ -1,6 +1,7 @@
 # error_parser.py
 import re
 
+
 class ErrorParser:
     PATTERNS = {
         'gcc': re.compile(r'^(.+?):(\d+):(?:(\d+):)?\s*(error|warning|note):\s*(.*)$', re.MULTILINE),
@@ -34,7 +35,7 @@ class ErrorParser:
         errors = []
         for m in pattern.finditer(stderr):
             g = m.groups()
-            if key in ('gcc','clang','rustc'):
+            if key in ('gcc', 'clang', 'rustc'):
                 errors.append({'file': g[0], 'line': int(g[1]), 'column': int(g[2]) if g[2] else None, 'level': g[3], 'message': g[4]})
             elif key == 'javac':
                 errors.append({'file': g[0], 'line': int(g[1]), 'level': g[2], 'message': g[3]})

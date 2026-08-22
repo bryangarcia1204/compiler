@@ -3,6 +3,7 @@ Módulo que proporciona listas de argumentos comunes
 para diferentes herramientas de compilación/empaquetado.
 """
 
+
 class ArgumentSuggester:
     # Base de datos de argumentos, indexada por nombre de herramienta (minúsculas)
     ARGUMENTS = {

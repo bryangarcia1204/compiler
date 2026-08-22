@@ -60,7 +60,6 @@ class PythonStrategy(CompilerStrategy):
         flags de compilación cruzada si es necesario.
         """
         project_name = os.path.basename(project_info.get('project_dir', 'mi_proyecto'))
-        main_file = os.path.basename(project_info.get('main_file', 'main.py'))
         dependencies = list(project_info.get('dependencies', set()))[:10]
         project_type = project_info.get('project_type', 'application')
 

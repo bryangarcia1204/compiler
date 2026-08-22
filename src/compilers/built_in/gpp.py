@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional, Any, Dict
 from ..base import CompilerStrategy
 from ...utils.target_manager import TargetManager
 
+
 class GPPStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:

@@ -5,9 +5,7 @@ Flujo completo: persistencia, análisis con IA, generación y compilación.
 """
 
 import os
-import sys
-import json
-from typing import Dict, Optional, Any
+from typing import Dict, Optional
 
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
@@ -15,7 +13,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QFileDialog, QMessageBox, QWidget,
     QScrollArea, QMainWindow, QListWidget, QListWidgetItem
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from .editor.editor_widget import CodeEditor
 from PyQt5.QtGui import QFont
 
@@ -236,7 +234,6 @@ class ProjectGeneratorDialog(QMainWindow):
         options_layout.addLayout(api_layout)
 
         options_layout.addLayout(target_layout)
-        
 
         # Prompt personalizado
         options_layout.addWidget(QLabel("Prompt personalizado (opcional):"))
@@ -245,7 +242,6 @@ class ProjectGeneratorDialog(QMainWindow):
         self.prompt_edit.setMaximumHeight(60)
         self.prompt_edit.setEnabled(False)
         options_layout.addWidget(self.prompt_edit)
-        
 
         # Botones de acción
         action_layout = QHBoxLayout()
@@ -436,8 +432,6 @@ class ProjectGeneratorDialog(QMainWindow):
         from ..config.compilador_config import CompiladorConfig
         self.compilador = CompiladorConfig(self.project_dir, auto_create=True)
 
-        
-
         # ── SI IA ACTIVA: OBTENER VEREDICTO ──
         if self.ai_checkbox.isChecked() and self.analyzer.ai_client:
             self.info_label.setText("Obteniendo veredicto de IA...")
@@ -461,7 +455,7 @@ class ProjectGeneratorDialog(QMainWindow):
 
         # Abrir .compilador en el editor
         self._open_config_in_editor()
-        
+
         # ── PREGUNTAR SI GENERAR ARCHIVOS ──
         # Ahora .compilador ya existe, lo usamos para decidir qué hacer
         targets = self.compilador.get('targets', [])
@@ -517,7 +511,6 @@ class ProjectGeneratorDialog(QMainWindow):
             QMessageBox.warning(self, "Error", "Primero analiza el proyecto.")
             return
 
-
         selected_targets = [item.text() for item in self.target_list.selectedItems()]
         # Configurar generador
         self.generator = ProjectGenerator(
@@ -545,7 +538,7 @@ class ProjectGeneratorDialog(QMainWindow):
         config_files = self.project_info.get("config_files")
         name_config = [cf["name"] for cf in config_files]
 
-        self.generated_files = {k:v for k,v in files.items() if k not in name_config}
+        self.generated_files = {k: v for k, v in files.items() if k not in name_config}
         self.edited_files = self.generated_files.copy()
 
         # Limpiar tabs

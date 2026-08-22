@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QGroupBox, QRadioButton, QButtonGroup, QScrollArea,
                              QCheckBox, QDialog, QListWidget, QListWidgetItem, QStyle)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QIcon
 
 from .utils.target_manager import TargetManager
 from .utils.argument_suggester import ArgumentSuggester
@@ -96,6 +95,7 @@ QCheckBox {
     spacing: 8px;
 }
 """
+
 
 # ========== WORKER ==========
 class CompileWorker(QThread):
@@ -217,16 +217,15 @@ class CompileWorker(QThread):
             pass
         super().terminate()
 
+
 # ========== VENTANA PRINCIPAL ==========
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Compilador/Empaquetador Profesional")
         self.setGeometry(100, 100, 950, 850)
-
         self.setStyleSheet(STYLE)
 
-        
         self.available_tools = []          # Se llenará después de la detección
         self.current_tools = []
         self.current_file = None
@@ -252,9 +251,6 @@ class MainWindow(QMainWindow):
 
         # Iniciar detección de herramientas en segundo plano
         QTimer.singleShot(200, self.start_tool_detection)
-
-        
-        
 
     def _load_market_plugins(self):
         """Carga los plugins instalados en el marketplace al iniciar."""
@@ -468,7 +464,7 @@ class MainWindow(QMainWindow):
         self.release_checkbox.stateChanged.connect(self.save_current_config)
 
         self.update_tools_list([])
-        
+
     def open_marketplace(self):
         """Abre el marketplace de plugins."""
         try:
@@ -785,7 +781,7 @@ class MainWindow(QMainWindow):
             display += f" - {tool['type'].capitalize()}"
             self.tools_combo.addItem(display, tool)
             idx = self.tools_combo.count() - 1
-            tooltip = f"Comando: {tool.get('command')}\nVersión: {tool.get('version','desconocida')}"
+            tooltip = f"Comando: {tool.get('command')}\nVersión: {tool.get('version', 'desconocida')}"
             if tool.get('supports_cross_compile'):
                 tooltip += "\n✅ Soporta compilación cruzada"
             self.tools_combo.setItemData(idx, tooltip, Qt.ToolTipRole)
@@ -840,8 +836,8 @@ class MainWindow(QMainWindow):
             tool_capabilities = CompilerDetector.get_tool_output_capabilities(self.selected_tool)
             if output_code not in tool_capabilities:
                 QMessageBox.warning(self, "Incompatibilidad",
-                    f"La herramienta {self.selected_tool['name']} no puede generar el tipo de salida '{output_text}'.\n"
-                    "Se utilizará el tipo 'Ejecutable (.exe)' por defecto.")
+                                    f"La herramienta {self.selected_tool['name']} no puede generar el tipo de salida '{output_text}'.\n"
+                                    "Se utilizará el tipo 'Ejecutable (.exe)' por defecto.")
                 self.output_type_combo.setCurrentIndex(0)
                 output_code = "exe"
         else:
@@ -949,6 +945,7 @@ class MainWindow(QMainWindow):
                 pass
         event.accept()
 
+
 def main():
     app = QApplication(sys.argv)
     try:
@@ -957,6 +954,7 @@ def main():
     except Exception as e:
         log.critical(f"Error critico del sistema: {e}")
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()

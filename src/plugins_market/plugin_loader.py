@@ -5,13 +5,12 @@ Permite cargar plugins desde archivos, directorios o el registro.
 Integración completa con PluginManager y PluginRegistry.
 """
 
-import os
 import sys
 import importlib
 import importlib.util
 import inspect
 from pathlib import Path
-from typing import List, Optional, Type, Dict, Any, Callable
+from typing import List, Optional, Type, Dict, Callable
 from ..compilers.base import CompilerStrategy
 from ..compilers.registry import CompilerRegistry
 from .plugin_registry import PluginRegistry, PluginStatus
@@ -72,7 +71,7 @@ class PluginLoader:
                     log.debug(f"[PluginLoader] Plugin cargado: {strategy_class.__name__}")
                     return strategy_class
                 else:
-                    log.error(f"[PluginLoader] STRATEGY_CLASS no es una subclase de CompilerStrategy")
+                    log.error("[PluginLoader] STRATEGY_CLASS no es una subclase de CompilerStrategy")
             else:
                 log.warning(f"[PluginLoader] No se encontró STRATEGY_CLASS en {filepath.name}")
 

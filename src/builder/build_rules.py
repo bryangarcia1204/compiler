@@ -131,7 +131,7 @@ class BuildRules:
         # Construir grafo de dependencias
         graph = {r.name: [dep.name for dep in cls._rules.values() if dep.produces and any(
             a in r.requires for a in dep.produces
-        )] for r in relevant} 
+        )] for r in relevant}
 
         if 'cpp_compile' and 'cpp_to_pyd' in graph:
             if 'pybind11' in summary['imports']['c++']:
@@ -164,7 +164,7 @@ class BuildRules:
 
 # ── REGISTRAR REGLAS POR DEFECTO ──
 
-def _register_default_rules(tools:list):
+def _register_default_rules(tools: list):
     """Registra las reglas por defecto para todos los lenguajes."""
 
     # ── C / C++ ──
@@ -176,7 +176,8 @@ def _register_default_rules(tools:list):
         requires=[],
         input_extensions=[".cpp", ".cc", ".cxx", ".h", ".hpp"],
         output_extensions=[".o", ".a", ".so", ".dylib", ".dll"],
-        build_command="cmake" if platform.system() == 'Windows' else "make", # cmake si es en Windows o make si es Linux
+        # cmake si es en Windows o make si es Linux
+        build_command="cmake" if platform.system() == 'Windows' else "make",
         priority=10
     ))
 

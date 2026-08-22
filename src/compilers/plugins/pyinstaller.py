@@ -6,6 +6,7 @@ from src.utils import logger
 
 log = logger.Logger()
 
+
 class PyInstallerStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:

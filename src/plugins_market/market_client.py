@@ -6,7 +6,7 @@ Cliente para comunicarse con el marketplace de plugins.
 import json
 import urllib.request
 import urllib.error
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from ..utils import logger
 
 log = logger.Logger()

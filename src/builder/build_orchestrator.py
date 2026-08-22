@@ -6,7 +6,7 @@ Ejecuta pasos en el orden correcto según dependencias usando reglas.
 
 import os
 import subprocess
-from typing import List, Dict, Optional, Any
+from typing import List, Dict
 from ..config.compilador_config import CompiladorConfig
 
 from ..utils import logger
@@ -86,7 +86,7 @@ class BuildOrchestrator:
         from ..compilers.registry import CompilerRegistry
         strategy = CompilerRegistry.get(language)
         if strategy:
-            cmd, cwd, post_action = strategy.build_command(project_info["main_files"],project_info["project_dir"],project_info.get("extra_args"), release_mode=True)
+            cmd, cwd, post_action = strategy.build_command(project_info["main_files"], project_info["project_dir"], project_info.get("extra_args"), release_mode=True)
             step = BuildStep(
                 name=f"build_{language}",
                 description=f"Compilando {language} (auto)",

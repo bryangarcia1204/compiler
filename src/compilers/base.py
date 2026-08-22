@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional, Any
 
+
 class CompilerStrategy(ABC):
     """
     Clase base para todas las estrategias de compilación.

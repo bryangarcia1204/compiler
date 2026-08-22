@@ -6,10 +6,10 @@ Diálogo del marketplace de plugins.
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QTabWidget, QWidget, QTextEdit, QProgressDialog, QLineEdit,
-    QListWidget, QListWidgetItem, QPushButton
+    QTabWidget, QWidget, QTextEdit, QLineEdit,
+    QListWidget, QListWidgetItem
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 
 from typing import Optional

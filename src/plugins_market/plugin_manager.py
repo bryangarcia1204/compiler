@@ -3,11 +3,6 @@
 Gestor de plugins: instalación, desinstalación, actualización.
 """
 
-import os
-import shutil
-import subprocess
-import sys
-import json
 from pathlib import Path
 from typing import List, Optional, Dict, Type
 from datetime import datetime
@@ -179,6 +174,7 @@ class PluginManager:
         return PluginLoader.reload_plugin(plugin_id, self.registry)
 
     from ..compilers import CompilerStrategy
+
     def get_loaded_plugins(self) -> Dict[str, Type[CompilerStrategy]]:
         """Obtiene los plugins cargados actualmente."""
         return PluginLoader.get_loaded_plugins()

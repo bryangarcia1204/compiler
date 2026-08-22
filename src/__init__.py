@@ -2,7 +2,7 @@
 """
 Compilador/Empaquetador Profesional
 ===================================
-Aplicación de escritorio que detecta automáticamente herramientas 
+Aplicación de escritorio que detecta automáticamente herramientas
 de compilación y empaquetado instaladas en el sistema.
 
 Permite compilar o empaquetar archivos fuente en múltiples formatos

@@ -78,7 +78,7 @@ def main():
     parser_compile.add_argument('--type', '-t', default='exe',
                                 help='Tipo de salida (ej: exe, dll, obj, etc.)')
     parser_compile.add_argument('--target', default='native',
-                            help='Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)')
+                                help='Plataforma destino (ej: windows-x86_64, linux-arm64, wasm32)')
     parser_compile.add_argument('--release', '-r', action='store_true',
                                 help='Modo release (optimizaciones)')
     parser_compile.add_argument('--args', '-a', help='Argumentos adicionales (entre comillas)')
@@ -348,7 +348,7 @@ def plugin_info(args):
             print(f"  Autor: {available.get('author', 'Unknown')}")
             print(f"  Descripción: {available.get('description', 'Sin descripción')}")
             print(f"  Lenguajes: {', '.join(available.get('supported_languages', []))}")
-            print(f"  Estado: 📦 Disponible en el marketplace")
+            print("  Estado: 📦 Disponible en el marketplace")
             return
     except Exception:
         pass
@@ -407,7 +407,6 @@ def init_project(args):
         config.load()
         print(f"✅ Proyecto inicializado en {args.directory}")
         return
-    
 
 
 def config_command(args):
@@ -655,7 +654,7 @@ def compile_file(args):
                 env=env
             )
             if result.returncode == 0:
-                print(f"✅ Compilación exitosa.")
+                print("✅ Compilación exitosa.")
                 if result.stdout:
                     print(result.stdout)
                 sys.exit(0)
@@ -730,7 +729,7 @@ def package_file(args):
 
     detector = CompilerDetector()
 
-    #Verificar si el target es nativo
+    # Verificar si el target es nativo
     if args.target and args.target != 'native':
         # Detectar si es Python con PyInstaller
         if file_path.endswith('.py'):
@@ -744,7 +743,7 @@ def package_file(args):
                 tool = pyoxidizer
             else:
                 print(f"⚠️  PyInstaller no soporta cross-compilation a {args.target}. PyOxidizer no está instalado.", file=sys.stderr)
-                print(f"⚠️  Continuando con plataforma nativa.", file=sys.stderr)
+                print("⚠️  Continuando con plataforma nativa.", file=sys.stderr)
                 args.target = 'native'
 
     # 1. Seleccionar herramienta de empaquetado
@@ -805,7 +804,7 @@ def build_project(args):
     # ── SI .compilador TIENE PASOS DE BUILD ──
     steps = config.get_build_steps()
     if steps:
-        print(f"📄 Usando pasos de build desde .compilador")
+        print("📄 Usando pasos de build desde .compilador")
         env = os.environ.copy()
         env.update(config.get_env_vars())
 
@@ -846,7 +845,6 @@ def build_project(args):
         print("❌ Construcción falló.", file=sys.stderr)
         sys.exit(1)
 
-# cli.py - Añadir función
 
 def enhance_config_command(args):
     """Mejora el archivo .compilador usando IA."""
@@ -879,6 +877,7 @@ def enhance_config_command(args):
     else:
         print("❌ No se pudo mejorar la configuración.", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()

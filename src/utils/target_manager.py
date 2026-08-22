@@ -134,7 +134,6 @@ class TargetManager:
         Retorna {target_name: [comandos_disponibles]}
         """
         tools = {}
-        system = platform.system()
 
         # 1. MinGW (Windows → Windows/Linux)
         if shutil.which('x86_64-w64-mingw32-gcc'):
@@ -209,8 +208,6 @@ class TargetManager:
         target = TargetManager.get_target(target_name)
         if not target:
             return None
-
-        triple = target.triple
 
         # MinGW
         if target.os == OSTarget.WINDOWS:

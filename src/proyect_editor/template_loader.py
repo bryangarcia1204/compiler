@@ -5,7 +5,7 @@ Carga y gestiona plantillas de archivos de configuración desde una base de dato
 
 import os
 import json
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from ..utils import logger
 

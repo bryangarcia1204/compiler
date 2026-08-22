@@ -3,13 +3,10 @@
 Registro central de plugins activos y disponibles.
 """
 
-import os
 import json
-import importlib
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime
 
 
 class PluginStatus(Enum):
@@ -135,9 +132,8 @@ class PluginRegistry:
             log.error(f"[PluginRegistry] Error guardando registro: {e}")
 
     def _get_registry_path(self):
-        from pathlib import Path
         from ..config.config_manager import CONFIG_DIR
-        
+
         return CONFIG_DIR / self.REGISTRY_FILE
 
     def get_plugin(self, plugin_id: str) -> Optional[PluginMetadata]:

@@ -12,7 +12,7 @@ import ast
 import hashlib
 import fnmatch
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Any, Tuple
+from typing import Dict, List, Optional, Any
 from collections import Counter, defaultdict
 
 try:
@@ -111,8 +111,8 @@ OUTPUT_TYPES = {
     'python': {'library': 'whl', 'application': 'exe', 'extension': 'pyd'},
     'rust': {'library': 'rlib', 'application': 'exe', 'cdylib': 'so'},
     'go': {'library': 'go-bin', 'application': 'exe'},
-    'c': {'library': 'a', 'application': 'exe', 'shared': 'so', 'dinamico':'dll'},
-    'c++': {'library': 'a', 'application': 'exe', 'shared': 'so', 'dinamico':'dll'},
+    'c': {'library': 'a', 'application': 'exe', 'shared': 'so', 'dinamico': 'dll'},
+    'c++': {'library': 'a', 'application': 'exe', 'shared': 'so', 'dinamico': 'dll'},
     'java': {'library': 'jar', 'application': 'jar'},
     'csharp': {'library': 'dll', 'application': 'exe'},
     'javascript': {'application': 'nodebin', 'library': 'nodepkg'},
@@ -177,7 +177,7 @@ class ProjectAnalyzer:
         model: Optional[str] = None,
         max_file_size: int = 1024 * 1024  # 1MB
     ):
-        
+
         self.project_dir = Path(project_dir).resolve()
         self.use_ai = use_ai
         self.max_file_size = max_file_size
@@ -343,7 +343,7 @@ class ProjectAnalyzer:
 # 3. ESCANEO DE ARCHIVOS (VERSIÓN CORREGIDA)
 # ──────────────────────────────────────────────────────────────
 
-    def _scan_files(self, archivo = None):
+    def _scan_files(self, archivo=None):
         """Escanea recursivamente todos los archivos del directorio."""
         if not archivo:
             for root, dirs, files in os.walk(self.project_dir):
@@ -385,7 +385,7 @@ class ProjectAnalyzer:
                     # ── DETERMINAR SI ES BINARIO ──
                     # Primero, extensiones claramente binarias
                     binary_exts = {
-                        '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo', 
+                        '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo',
                         '.o', '.obj', '.a', '.lib', '.class', '.jar', '.war', '.ear',
                         '.zip', '.gz', '.rar', '.7z', '.tar', '.bz2',
                         '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
@@ -406,7 +406,7 @@ class ProjectAnalyzer:
                             '.ps1', '.bat', '.cmd', '.sql', '.html', '.htm', '.css', '.scss',
                             '.sass', '.less', '.vue', '.svelte', '.xml', '.json', '.yaml',
                             '.yml', '.toml', '.ini', '.cfg', '.conf', '.txt', '.md', '.rst',
-                            '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore', 
+                            '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore',
                             '.env', '.flake8', '.pylintrc', '.editorconfig'
                         }
 
@@ -460,8 +460,7 @@ class ProjectAnalyzer:
                     self.summary['total_files'] += 1
                     self.summary['total_size'] += size
         else:
-            
-            
+
             if any(fnmatch.fnmatch(archivo, pattern) for pattern in self.ignore_files):
                 return
 
@@ -493,7 +492,7 @@ class ProjectAnalyzer:
             # ── DETERMINAR SI ES BINARIO ──
             # Primero, extensiones claramente binarias
             binary_exts = {
-                '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo', 
+                '.exe', '.dll', '.so', '.pyd', '.pyc', '.pyo',
                 '.o', '.obj', '.a', '.lib', '.class', '.jar', '.war', '.ear',
                 '.zip', '.gz', '.rar', '.7z', '.tar', '.bz2',
                 '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
@@ -514,7 +513,7 @@ class ProjectAnalyzer:
                     '.ps1', '.bat', '.cmd', '.sql', '.html', '.htm', '.css', '.scss',
                     '.sass', '.less', '.vue', '.svelte', '.xml', '.json', '.yaml',
                     '.yml', '.toml', '.ini', '.cfg', '.conf', '.txt', '.md', '.rst',
-                    '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore', 
+                    '.cmake', '.makefile', '.mk', '.dockerfile', '.gitignore',
                     '.env', '.flake8', '.pylintrc', '.editorconfig'
                 }
 
@@ -734,23 +733,23 @@ class ProjectAnalyzer:
         content = entry['content']
         if not content:
             return
-            
+
         # Detectar includes
         import re
         include_matches = re.findall(r'#include\s+[<"]([^>"]+)[>"]', content)
         for inc in include_matches:
             self.summary['imports']['c++'].add(inc)
-        
+
         # Detectar pybind11 (importante para extensiones Python)
         if 'pybind11' in content:
             self.summary['imports']['c++'].add('pybind11')
             self.summary['evidence'].append(f"Archivo {entry['rel_path']} usa pybind11")
-        
+
         # Detectar función main
         if 'main(' in content and ('int main' in content or 'void main' in content):
             self.summary['main_files'].append(entry['path'])
             self.summary['evidence'].append(f"Archivo {entry['rel_path']} contiene función main")
-        
+
         # Detectar si es una biblioteca (header-only o con clases)
         if 'class' in content or 'struct' in content:
             if 'pybind11' not in content:
@@ -910,7 +909,7 @@ class ProjectAnalyzer:
                 if 'main' in entry['content'].lower() if entry['content'] else False:
                     if entry['path'] not in self.summary['main_files']:
                         self.summary['main_files'].append(entry['path'])
-        
+
         # Si no hay main_files, usar el primer archivo fuente que no sea binario
         if not self.summary['main_files'] and self.summary['source_files']:
             # Priorizar archivos con nombres comunes
@@ -923,7 +922,7 @@ class ProjectAnalyzer:
                         break
                 if self.summary['main_files']:
                     break
-            
+
             # Si aún no hay, usar el primer archivo
             if not self.summary['main_files']:
                 self.summary['main_files'] = [self.summary['source_files'][0]['path']]
@@ -1346,8 +1345,8 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
             response = self.ai_client.chat(
                 messages=[
                     {"role": "system", "content": "Eres un analista de proyectos que vas a dar tu "
-                    "veredicto final segun los datos que se te den para finalizar la compilacion "
-                    "de un proyecto. Responde SOLO con el JSON."},
+                     "veredicto final segun los datos que se te den para finalizar la compilacion "
+                     "de un proyecto. Responde SOLO con el JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
@@ -1556,7 +1555,7 @@ SOLO EL JSON, sin explicaciones ni texto adicional.
     def _detect_cross_language_dependencies(self):
         """
         Detecta dependencias entre lenguajes de forma avanzada.
-        
+
         Casos detectados:
         1. Python importa módulos C++ (nombres desde setup.py o archivos .cpp)
         2. Python y JS se comunican vía APIs HTTP/WebSocket

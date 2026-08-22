@@ -5,13 +5,11 @@ TODO el comportamiento del compilador se basa en este archivo.
 Si no existe, se crea automáticamente al analizar un proyecto.
 """
 
-import os
 import yaml
 import time
 import hashlib
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -68,15 +66,15 @@ class CompiladorConfig:
             "default_target": "default",
             "output_dir": "dist",
             "clean_before_build": False
-        },  
+        },
         "main_files": [],           # Archivos principales detectados
         "evidence": [],             # Evidencia recopilada por el analizador
         "score_breakdown": {},      # Puntuación de intenciones
-        "suggested_config_files": [], # Archivos de configuración sugeridos
-        "suggested_build_architecture": "", # Arquitectura de build sugerida
+        "suggested_config_files": [],           # Archivos de configuración sugeridos
+        "suggested_build_architecture": "",         # Arquitectura de build sugerida
         "build_plan": [],           # Plan de construcción generado
         "tools": {},                # Herramientas detectadas por CompilerDetector
-}
+    }
 
     def __init__(self, project_dir: str, auto_create: bool = True):
         """

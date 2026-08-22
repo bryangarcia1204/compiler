@@ -3,6 +3,7 @@ import os
 from typing import List, Tuple, Optional, Any, Dict
 from src.compilers.base import CompilerStrategy
 
+
 class PythonBuildStrategy(CompilerStrategy):
     @property
     def tool_name(self) -> str:
@@ -44,5 +45,6 @@ class PythonBuildStrategy(CompilerStrategy):
         """Genera archivos de configuración para PyInstaller."""
         # PyInstaller no necesita archivos de configuración específicos
         return {}
+
 
 STRATEGY_CLASS = PythonBuildStrategy
