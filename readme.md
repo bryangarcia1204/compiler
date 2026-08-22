@@ -69,9 +69,9 @@ source venv/bin/activate   # Linux/macOS
 
 # Instalar el paquete en modo editable
 pip install -e .
-
-* Nota: `--no-build-isolation` evita conflictos con el módulo C++ durante el desarrollo.
 ```
+**Nota**: `--no-build-isolation` evita conflictos con el módulo C++ durante el desarrollo.
+
 ## Compilación del módulo C++
 
 El módulo C++ se compila automáticamente durante la instalación con `pip install -e .`.
