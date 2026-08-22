@@ -52,7 +52,7 @@ class CompilationEngine:
         if self.config and language:
             config_cmd = self._get_build_command_from_config(language.get("language", "").lower())
             if config_cmd:
-                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language.get("language")}: {config_cmd}")
+                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language.get('language')}: {config_cmd}")
                 # Dividir el comando y reemplazar placeholders
                 cmd_parts = config_cmd.split()
                 cmd_parts = [p.replace('{file}', file_path) for p in cmd_parts]
@@ -106,7 +106,7 @@ class CompilationEngine:
         if self.config and language:
             config_cmd = self._get_build_command_from_config(language.get("language", "").lower())
             if config_cmd:
-                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language.get("language")}: {config_cmd}")
+                log.info(f"[CompilationEngine] Usando comando desde .compilador para {language.get('language')}: {config_cmd}")
                 # Dividir el comando y reemplazar placeholders
                 cmd_parts = config_cmd.split()
                 cmd_parts = [p.replace('{file}', file_path) for p in cmd_parts]
