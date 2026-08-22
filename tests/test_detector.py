@@ -325,7 +325,7 @@ class TestCompilationEngine(unittest.TestCase):
     def test_build_command_for_go(self):
         """Prueba la construcción de comandos para Go."""
         tool = {'type': 'compiler', 'name': 'go'}
-        cmd, cwd, actions, env = self.engine.build_command_for(
+        cmd, cwd, actions = self.engine.build_command_for(
             'main.go', tool, release_mode=True
         )
         self.assertIsNotNone(cmd)
